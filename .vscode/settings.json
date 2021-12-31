@@ -1,0 +1,16 @@
+{
+    "files.associations": {
+        "satsolver.h": "c",
+        "ostream": "cpp",
+        "bitset": "cpp",
+        "iostream": "cpp",
+        "*.tcc": "cpp",
+        "espresso.h": "c",
+        "chrono": "cpp",
+        "iosfwd": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "cmath": "cpp",
+        "random": "cpp"
+    }
+}

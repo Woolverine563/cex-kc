@@ -1,0 +1,3 @@
+[submodule "dependencies/abc"]
+	path = dependencies/abc
+	url = git@github.com:jsahil730/abc.git
