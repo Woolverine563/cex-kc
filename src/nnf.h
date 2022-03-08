@@ -36,6 +36,7 @@ public:
 };
 
 class Nnf_Man {
+public:
 	string pName;
 	vector<Nnf_Obj*> _inputs_pos;
 	vector<Nnf_Obj*> _inputs_neg;
@@ -48,7 +49,6 @@ class Nnf_Man {
 	void makeNnf();
 	Aig_Man_t* createAig(bool withCloudInputs);
 
-public:
 	Nnf_Man();
 	Nnf_Man(Aig_Man_t* pSrc);
 	Nnf_Man(DdManager* ddMan, DdNode* FddNode);
@@ -128,3 +128,4 @@ void NNf_ObjSetFanin1(Nnf_Obj* parent, Nnf_Obj* child);
 
 Nnf_Type SwitchAndOrType(Nnf_Type t);
 string type2String(Nnf_Type t);
+void dumpNnf(Nnf_Man* nnf, string fname);

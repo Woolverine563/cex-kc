@@ -52,7 +52,7 @@ namespace ABC_NAMESPACE {
 	Aig_Man_t * Abc_NtkToDar(Abc_Ntk_t * pNtk, int fExors, int fRegisters);
 	Abc_Ntk_t * Abc_NtkFromAigPhase(Aig_Man_t * pMan);
 	int Aig_ObjTerSimulate( Aig_Man_t * pAig, Aig_Obj_t * pNode, Vec_Int_t * vSuppLits );
-	static Cnf_Man_t * s_pManCnf;
+	// static Cnf_Man_t * s_pManCnf;
 	void Aig_ConeMark_rec(Aig_Obj_t* pObj);
 	}
 }
@@ -103,45 +103,55 @@ class  Nnf_Man;
 
 enum sType {skolemR0, skolemR1, skolemRx};
 struct optionStruct {
-	bool 	proactiveProp;
-	bool 	useABCSolver;
-	bool 	evalAigAtNode;
 	bool	fixAllIndices;
-	long 	timeOut;
+	bool 	unate;
+	int 	timeout;
 	string 	benchmark;
 	string 	outFName;
 	string 	varsOrder;
-	int conflictCheck;
-	int rectifyProc;
-	int depth;
-	sType 	skolemType;
-	int 	numSamples;
-	int 	numThreads;
-	int 	c1;
-	int 	c2;
-	bool 	useFmcadPhase;
-	bool	unigenBackground;
-	double 	unigenThreshold;
-	int 	waitSamples;
-	bool 	monoSkolem;
-	bool 	reverseOrder;
-	bool 	noRevSub;
-	bool 	skipCegar;
-	bool 	verify;
-	bool 	noUnate;
-	bool 	noSyntacticUnate;
-	bool 	noSemanticUnate;
-	int 	fmcadSizeThreshold;
+	int 	conflictCheck;
+	int 	rectifyProc;
+	int 	depth;
 	int 	unateTimeout;
-	bool 	checkSatOnly;
-	bool 	checkWDNNF;
-	bool 	useBDD;
+	bool	useShannon;
 };
 
 struct ConflictCounterEx {
 	vector<int> X;
 	vector<int> Y;
 	int idx = 0;
+};
+
+struct Lit {
+	int lit;
+
+	Lit(int l) : lit(l) {}
+	Lit(int v, int c) : lit(Abc_Var2Lit(v, c)) {}
+	Lit(const Lit& l) : lit(l.lit) {}
+
+	inline int getLit() const {
+		return lit;
+	}
+
+	inline int getVar() const {
+		return Abc_Lit2Var(lit);
+	}
+
+	inline bool isCompl() const {
+		return Abc_LitIsCompl(lit);
+	}
+
+	inline Lit getCompl() const {
+		return Lit(Abc_LitNot(lit));
+	}
+
+	inline bool operator<(const Lit& other) const {
+		return Abc_Lit2Var(lit) < Abc_Lit2Var(other.lit);
+	}
+
+	inline operator int() const {
+		return lit;
+	}
 };
 
 extern vector<int> varsSInv;
@@ -152,25 +162,9 @@ extern vector<string> varsNameX, varsNameY;
 extern Abc_Frame_t* pAbc;
 extern sat_solver* m_pSat;
 extern Cnf_Dat_t* m_FCnf;
-extern lit m_f;
-extern vector<bool>  useR1AsSkolem;
-extern int numFixes;
-extern int numCEX;
-extern int numCEXUsed;
 extern cxxopts::Options optParser;
-extern cxxopts::Options optParserOrdering;
 extern optionStruct options;
-extern optionStruct optionsOriginal;
 extern vector<vector<int> > k2Trend;
-extern double sat_solving_time;
-extern double verify_sat_solving_time;
-extern double reverse_sub_time;
-extern double core_comp_time;
-extern double resolv_time;
-extern vector<vector<int>> CiCloudIth;
-extern vector<vector<int>> CoIth;
-extern int F_SAigIndex;
-extern int FPrime_SAigIndex;
 extern ConflictCounterEx pi;
 extern int it;
 
@@ -187,25 +181,10 @@ void 			populateVars(Abc_Ntk_t* FNtk, string varsFile,
 					map<string,int>& name2IdF, map<int,string>& id2NameF);
 Aig_Obj_t* 		Aig_SubstituteConst(Aig_Man_t* pMan, Aig_Obj_t* initAig, int varId, int one);
 Aig_Obj_t* 		Aig_Substitute(Aig_Man_t* pMan, Aig_Obj_t* initAig, int varId, Aig_Obj_t* func);
-void			initializeCompose(Aig_Man_t* SAig, vector<Aig_Obj_t* >& Fs,
-					vector<vector<int> >& r0, vector<vector<int> >& r1, vector<int>& unate);
-void			initializeComposeCloudInputs(Aig_Man_t* SAig, vector<Aig_Obj_t* >& Fs,
-					vector<vector<int> >& r0, vector<vector<int> >& r1, vector<int>& unate);
 bool 			addVarToSolver(sat_solver* pSat, int varNum, int val);
 int 			getCnfCoVarNum(Cnf_Dat_t* cnf, Aig_Man_t* aig, int nthCo);
-lit 			addRlToSolver(sat_solver* pSat, Cnf_Dat_t* GCnf, Aig_Man_t* GAig, const vector<int>& r);
-lit 			addRlToSolver_rec(sat_solver* pSat, Cnf_Dat_t* GCnf, Aig_Man_t* GAig, const vector<int>& r, int start, int end);
 lit 			OR(sat_solver* pSat, lit lh, lit rh);
 bool 			addCnfToSolver(sat_solver* pSat, Cnf_Dat_t* cnf);
-pair<Cnf_Dat_t*,bool> buildErrorFormula(sat_solver* pSat, Aig_Man_t* SAig,
-					vector<vector<int> > &r0, vector<vector<int> > &r1);
-bool 			callSATfindCEX(Aig_Man_t* SAig,vector<int>& cex,
-					vector<vector<int> > &r0, vector<vector<int> > &r1);
-bool 			getNextCEX(Aig_Man_t*&SAig, int& M, int& k1Level, int& k1MaxLevel, vector<vector<int> > &r0, vector<vector<int> > &r1);
-bool 			populateCEX(Aig_Man_t* SAig,
-					vector<vector<int> > &r0, vector<vector<int> > &r1);
-bool 			populateStoredCEX(Aig_Man_t* SAig,
-					vector<vector<int> > &r0, vector<vector<int> > &r1, bool fetch);
 void 			evaluateAig(Aig_Man_t* formula, const vector<int> &cex);
 Aig_Obj_t* 		satisfiesVec(Aig_Man_t* formula, const vector<int>& cex, const vector<int>& coObjs, bool reEvaluate);
 Aig_Obj_t* 		generalize(Aig_Man_t*pMan, vector<int> cex, const vector<int>& rl);
@@ -217,18 +196,12 @@ Aig_Obj_t* 		Aig_OrAigs(Aig_Man_t* pMan, Aig_Obj_t* Aig1, Aig_Obj_t* Aig2) ;
 Aig_Obj_t* 		AND_rec(Aig_Man_t* SAig, vector<Aig_Obj_t* >& nodes, int start, int end);
 Aig_Obj_t* 		newAND(Aig_Man_t* SAig, vector<Aig_Obj_t* >& nodes) ;
 Aig_Obj_t* 		projectPi(Aig_Man_t* pMan, const vector<int> &cex, const int m);
-void 			updateAbsRef(Aig_Man_t*&pMan, int M, int k1Level, int k1MaxLevel, vector<vector<int> > &r0, vector<vector<int> > &r1);
 Aig_Man_t* 		compressAig(Aig_Man_t* SAig);
 Aig_Man_t* 		compressAigByNtk(Aig_Man_t* SAig);
 Aig_Man_t* 		compressAigByNtkMultiple(Aig_Man_t* SAig, int times);
-void 			checkSupportSanity(Aig_Man_t*pMan, vector<vector<int> > &r0, vector<vector<int> > &r1);
 Aig_Obj_t* 		OR_rec(Aig_Man_t* SAig, vector<int>& nodes, int start, int end);
 Aig_Obj_t* 		newOR(Aig_Man_t* SAig, vector<int>& nodes);
 Aig_Obj_t* 		Aig_XOR(Aig_Man_t*p, Aig_Obj_t*p0, Aig_Obj_t*p1);
-void 			verifyResult(Aig_Man_t*&SAig, vector<vector<int> >& r0,
-					vector<vector<int> >& r1, bool deleteCos);
-void 			checkCexSanity(Aig_Man_t* pMan, vector<int>& cex, vector<vector<int> >& r0,
-					vector<vector<int> >& r1);
 Aig_Obj_t* 		Aig_SubstituteVec(Aig_Man_t* pMan, Aig_Obj_t* initAig, vector<int> varIdVec,
 					vector<Aig_Obj_t*>& funcVec);
 vector<Aig_Obj_t* >	Aig_SubstituteVecVec(Aig_Man_t* pMan, Aig_Obj_t* initAig, vector<vector<Aig_Obj_t*> >& funcVecs);
@@ -239,31 +212,8 @@ Aig_Obj_t*	 	Aig_ComposeVec( Aig_Man_t * p, Aig_Obj_t * pRoot, vector<Aig_Obj_t 
 void 			Aig_VecVecConeUnmark_rec(Aig_Obj_t * pObj);
 void 			Aig_ComposeVecVec_rec(Aig_Man_t* p, Aig_Obj_t* pObj, vector<vector<Aig_Obj_t*> >& pFuncVecs);
 vector<Aig_Obj_t* > Aig_ComposeVecVec(Aig_Man_t* p, Aig_Obj_t* pRoot, vector<vector<Aig_Obj_t*> >& pFuncVecs);
-void 			Sat_SolverWriteDimacsAndIS( sat_solver * p, char * pFileName,
-					lit* assumpBegin, lit* assumpEnd, vector<int>&IS, vector<int>&retSet);
-int 			unigen_call(string fname, int nSamples, int nThreads);
-bool 			unigen_fetchModels(Aig_Man_t* SAig, vector<vector<int> > &r0,
-							vector<vector<int> > &r1, bool more);
-vector<lit>		setAllNegX(Cnf_Dat_t* SCnf, Aig_Man_t* SAig, int val);
-int 			findK2Max(Aig_Man_t* SAig, sat_solver* m_pSat, Cnf_Dat_t* m_FCnf, vector<int>&cex,
-							vector<vector<int> >&r0, vector<vector<int> >&r1, int k1Max, int prevM);
-int 			findK2Max_rec(sat_solver* pSat, Cnf_Dat_t* SCnf, vector<int>&cex, int k_start, int k_end, lit assump[]);
-bool 			checkIsFUnsat(sat_solver* pSat, Cnf_Dat_t* SCnf, vector<int>&cex, int k, lit assump[]);
-int 			filterAndPopulateK1Vec(Aig_Man_t* SAig, vector<vector<int> >&r0, vector<vector<int> >&r1, int prevM);
-int 			filterAndPopulateK1VecFast(Aig_Man_t* SAig, vector<vector<int> >&r0, vector<vector<int> >&r1, int prevM);
-int				populateK2Vec(Aig_Man_t* SAig, vector<vector<int> >&r0, vector<vector<int> >&r1, int prevM);
-void 			initializeAddR1R0toR();
-void			collapseInitialLevels(Aig_Man_t* pMan, vector<vector<int> >& r0, vector<vector<int> >& r1);
-void			propagateR1Cofactors(Aig_Man_t* pMan, vector<vector<int> >& r0, vector<vector<int> >& r1);
-void			propagateR0Cofactors(Aig_Man_t* pMan, vector<vector<int> >& r0, vector<vector<int> >& r1);
-void			propagateR_Cofactors(Aig_Man_t* pMan, vector<vector<int> >& r0, vector<vector<int> >& r1);
-void			propagateR0R1Cofactors(Aig_Man_t* pMan, vector<vector<int> >& r0, vector<vector<int> >& r1);
-void			chooseSmallerR_(Aig_Man_t* pMan, vector<vector<int> >& r0, vector<vector<int> >& r1);
-void			chooseR_(Aig_Man_t* pMan, vector<vector<int> >& r0, vector<vector<int> >& r1);
 void			parseOptions(int argc, char * argv[]);
 void			parseOptionsOrdering(int argc, char * argv[]);
-void 			printK2Trend();
-void 			monoSkolem(Aig_Man_t*&pMan, vector<vector<int> > &r0, vector<vector<int> > &r1);
 string			getFileName(string s);
 int 			checkUnateSyntacticAll(Aig_Man_t* FAig, vector<int>&unate);
 int 			checkUnateSemanticAll(Aig_Man_t* FAig, vector<int>&unate);
@@ -271,18 +221,22 @@ int 			checkUnateSemAll(Aig_Man_t* FAig, vector<int>&unate);//Same as checkUnate
 void 			populateVars(Abc_Ntk_t* FNtk, string varsFile, vector<string>& varOrder,
 					vector<int>& varsXF, vector<int>& varsYF,
 					map<string,int>& name2IdF, map<int,string>& id2NameF);
-void 			substituteUnates(Aig_Man_t* &pMan, vector<int>&unate);
-void 			saveSkolems(Aig_Man_t* SAig, vector<int>& r_Aigs, string outfname);
 void 			printAig(Aig_Man_t* pMan);
 int 			Aig_DagSizeWithConst(Aig_Obj_t * pObj);
-void			printBDDNode(DdManager* ddMan, DdNode* obj);
-void			printBDD(DdManager* ddMan, DdNode* f);
 Aig_Obj_t*		coreAndIntersect(Aig_Man_t*, Aig_Man_t*);
 Aig_Man_t* 		PositiveToNormal(Aig_Man_t* SAig);
+Aig_Man_t* 		PositiveToNormalWithNeg(Aig_Man_t* SAig);
 Aig_Man_t* 		NormalToPositive(Aig_Man_t* &FAig);
 bool 			Aig_IsPositive(Aig_Man_t* SAig);
 void 			repair(Aig_Man_t* SAig);
 bool 			isConflict(Aig_Man_t* SAig, int idx);
+void 			setUnatesSaig(Aig_Man_t* SAig, vector<int> &unates);
+int 			checkUnate(Aig_Man_t* SAig, vector<int> &unates);
+void 			doShannonExp(Aig_Man_t* SAig, int idx);
+Cnf_Dat_t* 		getErrorFormulaCNF(Aig_Man_t* SAig);
+Cnf_Dat_t* 		getConflictFormulaCNF(Aig_Man_t* SAig, int idx);
+Cnf_Dat_t* 		getConflictFormulaCNF2(Aig_Man_t* SAig, int idx);
+lbool 			solveAndModel(Aig_Man_t* SAig, Cnf_Dat_t* cnf);
 
 template<class T>
 void print(T v) {

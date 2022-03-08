@@ -255,7 +255,7 @@ Nnf_Obj* Nnf_Man::createCo(Nnf_Obj* pDriver) {
 
 void Nnf_Man::parse_aig(Aig_Man_t* pSrc) {
 	int i;
-	Aig_Obj_t* pObj, *f0, *f1;
+	Aig_Obj_t* pObj;
 	Nnf_Obj* nObj;
 
 	if(pSrc->pName)
@@ -265,7 +265,7 @@ void Nnf_Man::parse_aig(Aig_Man_t* pSrc) {
 	for (int i = 1; i < _allNodes.size(); ++i) {
 		if(_allNodes[i] != NULL)
 			delete _allNodes[i];
-			_allNodes[i] = NULL;
+		_allNodes[i] = NULL;
 	}
 	_allNodes.resize(1);
 	_inputs_pos.clear();
@@ -669,8 +669,6 @@ void Nnf_Man::Nnf_ManDfs_rec(Nnf_Obj * pObj, vector<Nnf_Obj*> &vNodes) {
 // Returns Nodes in Toposorted Order
 vector<Nnf_Obj*> Nnf_Man::Nnf_ManDfs() {
     vector<Nnf_Obj*> vNodes;
-    Nnf_Obj * pObj;
-    int i;
 
     // Unmark all nodes
     for(auto it: _allNodes)
@@ -867,3 +865,43 @@ string type2String(Nnf_Type t) {
 	cerr << "Error: type2String type: " << t << endl;
 	assert(false);
 }
+
+void dumpNnf(Nnf_Man* nnf, string fname) {
+	ofstream outFile(fname);
+
+	// const 1 would be skipped for the time being, no idea how to deal with that
+	
+	nnf->print();
+
+	int sz1 = nnf->_allNodes.size() - 2; // one PO
+	int sz2 = sz1 * 2 - nnf->getCiNum() * 4;
+
+	outFile << "nnf " << sz1 << " " << sz2 << " " << nnf->getCiNum() * 2 << endl;
+
+	for (int i = 0; i < nnf->getCiNum(); i++) {
+		outFile << "L " << (nnf->_inputs_pos[i])->Id << endl;
+	}
+
+	for (int i = 0; i < nnf->getCiNum(); i++) {
+		outFile << "L -" << (nnf->_inputs_pos[i])->Id << endl;
+	}
+
+	for (int i = nnf->getCiNum()*2 + 1; i < nnf->_allNodes.size(); i++) {
+		auto node = nnf->_allNodes[i];
+		if (!Nnf_ObjIsCo(node) && !Nnf_ObjIsCi(node)) {
+			auto c1 = node->pFanin0;
+			auto c2 = node->pFanin1;
+
+			if (Nnf_ObjIsAnd(node)) {
+				outFile << "A 2 " << c1->Id - 1 << " " << c2->Id - 1 << endl;
+			}
+			else if (Nnf_ObjIsOr(node)) {
+				outFile << "O 0 2 " << c1->Id - 1 << " " << c2->Id - 1 << endl;
+			}
+			else {
+				assert(false);
+			}
+		}
+	}
+	exit(0);
+}	

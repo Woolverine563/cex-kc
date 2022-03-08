@@ -2,3 +2,10 @@ bin/
 obj/
 build/
 .vscode/
+gmon.out
+analysis/
+results/
+partial_results/
+sdd.csv
+*.nnf
+*.sdd

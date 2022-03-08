@@ -27,7 +27,7 @@ LFLAGS    = $(DIR_INCLUDES) $(LIB_ABC) $(LIB_COMMON)
 ifeq ($(BUILD),RELEASE)
 CPP_FLAGS += -O3
 else ifeq ($(BUILD),TEST)
-CPP_FLAGS += -O0 -g -pg
+CPP_FLAGS += -O3 -g -pg -DDEBUG
 else ifeq ($(BUILD),DEBUG)
 CPP_FLAGS += -O0 -g -pg -DDEBUG
 else
