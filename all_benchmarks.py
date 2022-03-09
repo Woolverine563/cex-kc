@@ -1,6 +1,6 @@
 import os
 
-f = open('benchmarks_to_run', 'w')
+f = open('all_benchmarks_to_run', 'w')
 
 for a in os.listdir('benchmarks'):
     if os.path.isdir(f'benchmarks/{a}'):

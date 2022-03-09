@@ -1,3 +1,4 @@
+import argparse
 from subprocess import run, check_output
 from multiprocessing import Pool
 from csv import writer
@@ -6,7 +7,17 @@ from hashlib import md5
 from more_itertools import collapse
 import os
 
-TIMEOUT = 1800
+parser = argparse.ArgumentParser()
+
+parser.add_argument("-timeout", type=int, default=3600)
+parser.add_argument("-unate", action='store_true')
+parser.add_argument("-shannon", action='store_true')
+parser.add_argument("-analyse", action='store_true')
+parser.add_argument("file", type=str)
+parser.add_argument("-outdir", type=str, default='results')
+parser.add_argument("-analysisdir", type=str, default='analysis')
+arguments = parser.parse_args()
+
 
 def run_code(kwargs: dict):
     args = ["bin/main"]
@@ -14,25 +25,21 @@ def run_code(kwargs: dict):
         args.append(k)
         args.append(v)
 
-    args.append("-u")
+    if (arguments.unate):
+        args.append("-u")
+    
+    if (arguments.shannon):
+        args.append("-s")
 
     try:
-        # check_output(args)
-
-        # b_name = args[2] + ".nnf"
-
-        # oup = check_output(["python3", "../nnf2sdd/compiler.py", b_name], timeout=1800)
-
-        # lines = oup.splitlines()
-
-        # return [b_name, lines[0].strip().split()[1][:-1].decode(), f"{float(lines[2].strip().decode()):.4f}", lines[3].strip().split(b':')[1].strip().decode()]
-        
         oup = check_output(args)
         hash = md5(' '.join(args).encode()).hexdigest()
 
         print(oup.decode())
 
-        run(["gprof","bin/main","gmon.out"],stdout=open(f'analysis/analysis-{hash}.txt','w'))
+        if (arguments.analyse):
+            with open(f'{arguments.analysisdir}/analysis-{hash}.txt','w') as _:
+                run(["gprof","bin/main","gmon.out"],stdout=_)
 
         lines = oup.splitlines()[-6:]
 
@@ -46,15 +53,15 @@ def run_code(kwargs: dict):
         numY = lines[3].split()[-2].decode()
         time = lines[4].strip().split()[0].decode()
 
-        return [args[2], initial, final, init_u, tot_u, iters, counterexs, idx, numY, time] + lines[5].strip().split() + [args[3:], hash]
+        return [args[2], initial, final, init_u, tot_u, iters, counterexs, idx, numY, time] + [x.decode() for x in lines[5].strip().split()] + [hash] + args[3:]
 
     except Exception as e:
-        print(e)
-        return []
+        print(args, e)
+        return [args[2]]
 
 benchmarks = []
 
-with open('benchmarks_to_run', 'r') as f:
+with open(arguments.file, 'r') as f:
     l = f.readlines()
     for i in range(len(l)):
         b_name = l[i].strip()
@@ -65,8 +72,11 @@ with open('benchmarks_to_run', 'r') as f:
         # b_order = l[2*i+1].strip()
         benchmarks.append((b_name, b_order))
 
-# system("make clean")
-# system("make BUILD=RELEASE")
+os.system("make clean")
+if arguments.analyse:
+    os.system("make")
+else: 
+    os.system("make BUILD=RELEASE")
 
 d = {}
 
@@ -75,18 +85,20 @@ rectify = ["3"]
 conflict = ["2"]
 
 
-os.makedirs('analysis', exist_ok=True)
-os.makedirs('results', exist_ok=True)
+if arguments.analyse:
+    os.makedirs(arguments.analysisdir, exist_ok=True)
+    for file in os.listdir(arguments.analysisdir):
+        os.remove(f"{arguments.analysisdir}/{file}")
 
-for file in os.listdir('analysis'):
-    os.remove(f"analysis/{file}")
+os.makedirs(arguments.outdir, exist_ok=True)
 
-f = open('results/runs.csv', 'w')
-f2 = open('results/allUnates', 'w')
-f3 = open('results/noConflictsWithUnates', 'w')
-f4 = open('results/noConflicts', 'w')
-f5 = open('results/noUnates', 'w')
-f6 = open('results/others', 'w')
+f = open(f'{arguments.outdir}/runs.csv', 'w')
+f2 = open(f'{arguments.outdir}/allUnates', 'w')
+f3 = open(f'{arguments.outdir}/noConflictsWithUnates', 'w')
+f4 = open(f'{arguments.outdir}/noConflicts', 'w')
+f5 = open(f'{arguments.outdir}/noUnates', 'w')
+f6 = open(f'{arguments.outdir}/others', 'w')
+f7 = open(f'{arguments.outdir}/error', 'w')
 
 wr = writer(f)
 
@@ -98,14 +110,14 @@ runs = []
 v = list(product(rectify, depth)) # + [("1", "0")]
 
 for (name, order), c, (r, d) in product(benchmarks, conflict, v):
-        d2 = {"-b": name, "-v": order, "-c": c, "-r": r, "-d": d, "-t": str(TIMEOUT)}
+        d2 = {"-b": name, "-v": order, "-c": c, "-r": r, "-d": d, "-t": str(arguments.timeout)}
         runs.append(d2)
 
 # for (name, order) in benchmarks:
 #     d2 = {"-b":name, "-v": order}
 #     runs.append(d2)
 
-pool = Pool()
+pool = Pool(processes=os.cpu_count()-1)
 
 pool = pool.map_async(run_code, runs)
 pool.wait()
@@ -116,7 +128,7 @@ params = {}
 benchmark_names = [x[0] for x in benchmarks]
 
 for row in res:
-    if (len(row) > 0):
+    if (len(row) > 1): # no error
         bname = row[0]
         wr.writerow(row)
 
@@ -131,14 +143,8 @@ for row in res:
             f5.write(bname+"\n")
         else:
             f6.write(bname+"\n")
-
-
-        f.flush()
-        f2.flush()
-        f3.flush()
-        f4.flush()
-        f5.flush()
-        f6.flush()
+    else:
+        f7.write(row[0]+"\n")
         
 
 f.close()
@@ -147,3 +153,4 @@ f3.close()
 f4.close()
 f5.close()
 f6.close()
+f7.close()
