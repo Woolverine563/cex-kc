@@ -7,29 +7,20 @@ from hashlib import md5
 from more_itertools import collapse
 import os
 
-parser = argparse.ArgumentParser()
-
-parser.add_argument("-timeout", type=int, default=3600)
-parser.add_argument("-unate", action='store_true')
-parser.add_argument("-shannon", action='store_true')
-parser.add_argument("-analyse", action='store_true')
-parser.add_argument("file", type=str)
-parser.add_argument("-outdir", type=str, default='results')
-parser.add_argument("-analysisdir", type=str, default='analysis')
-arguments = parser.parse_args()
-
-
-def run_code(kwargs: dict):
+def run_code(kwargs: dict, analyse: bool, analysisdir: str):
     args = ["bin/main"]
+
+    if kwargs.pop('-u', False):
+        args.append("-u")
+
+    if kwargs.pop('-s', False):
+        args.append("-s")
+
     for k,v in kwargs.items():
         args.append(k)
-        args.append(v)
+        args.append(str(v))
 
-    if (arguments.unate):
-        args.append("-u")
-    
-    if (arguments.shannon):
-        args.append("-s")
+    bname = kwargs["-b"]
 
     try:
         oup = check_output(args)
@@ -37,8 +28,8 @@ def run_code(kwargs: dict):
 
         print(oup.decode())
 
-        if (arguments.analyse):
-            with open(f'{arguments.analysisdir}/analysis-{hash}.txt','w') as _:
+        if (analyse):
+            with open(f'{analysisdir}/analysis-{hash}.txt','w') as _:
                 run(["gprof","bin/main","gmon.out"],stdout=_)
 
         lines = oup.splitlines()[-6:]
@@ -53,42 +44,21 @@ def run_code(kwargs: dict):
         numY = lines[3].split()[-2].decode()
         time = lines[4].strip().split()[0].decode()
 
-        return [args[2], initial, final, init_u, tot_u, iters, counterexs, idx, numY, time] + [x.decode() for x in lines[5].strip().split()] + [hash] + args[3:]
+        return [bname, initial, final, init_u, tot_u, iters, counterexs, idx, numY, time] + [x.decode() for x in lines[5].strip().split()] + [hash] + args[1:]
 
     except Exception as e:
-        print(args, e)
-        return [args[2]]
+        print(e, args)
+        return [bname]
 
-benchmarks = []
+parser = argparse.ArgumentParser()
 
-with open(arguments.file, 'r') as f:
-    l = f.readlines()
-    for i in range(len(l)):
-        b_name = l[i].strip()
-
-        path, file = b_name.rsplit('/', 1)
-        
-        b_order = f"{path}/OrderFiles/{file.rsplit('.', 1)[0]}_varstoelim.txt"
-        # b_order = l[2*i+1].strip()
-        benchmarks.append((b_name, b_order))
-
-os.system("make clean")
-if arguments.analyse:
-    os.system("make")
-else: 
-    os.system("make BUILD=RELEASE")
-
-d = {}
-
-depth = ["20"]
-rectify = ["3"]
-conflict = ["2"]
-
-
-if arguments.analyse:
-    os.makedirs(arguments.analysisdir, exist_ok=True)
-    for file in os.listdir(arguments.analysisdir):
-        os.remove(f"{arguments.analysisdir}/{file}")
+parser.add_argument("-timeout", type=int, default=3600)
+parser.add_argument("-analyse", action='store_true')
+parser.add_argument("file", type=str)
+parser.add_argument("-outdir", type=str, default='results')
+parser.add_argument("-analysisdir", type=str, default='analysis')
+parser.add_argument("-nocompile", action='store_true')
+arguments = parser.parse_args()
 
 os.makedirs(arguments.outdir, exist_ok=True)
 
@@ -103,29 +73,51 @@ f7 = open(f'{arguments.outdir}/error', 'w')
 wr = writer(f)
 
 # wr.writerow(["Benchmark", "Input NNF size", "Time", "SDD size"])
-wr.writerow(["Benchmark", "Initial size", "Final size", "Initial unates", "Final unates", "Number of iterations", "Number of cex", "Outputs fixed", "Total outputs", "Time taken", "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime"])
+wr.writerow(["Benchmark", "Initial size", "Final size", "Initial unates", "Final unates", "Number of iterations", "Number of cex", "Outputs fixed", "Total outputs", "Time taken", "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime", "compressTime"])
+        
+if (not arguments.nocompile):
+    os.system("make clean")
+    if arguments.analyse:
+        os.system("make")
+    else: 
+        os.system("make BUILD=RELEASE")
+
+if arguments.analyse:
+    os.makedirs(arguments.analysisdir, exist_ok=True)
+    for file in os.listdir(arguments.analysisdir):
+        os.remove(f"{arguments.analysisdir}/{file}")
+
+depth = [20]
+rectify = [3]
+conflict = [2]
+unate = [True, False]
+shannon = [False]
+benchmarks = []
+
+with open(arguments.file, 'r') as f:
+    l = f.readlines()
+    for i in range(len(l)):
+        b_name = l[i].strip()
+
+        benchmarks.append(b_name)
 
 runs = []
 
 v = list(product(rectify, depth)) # + [("1", "0")]
 
-for (name, order), c, (r, d) in product(benchmarks, conflict, v):
-        d2 = {"-b": name, "-v": order, "-c": c, "-r": r, "-d": d, "-t": str(arguments.timeout)}
-        runs.append(d2)
+for name, c, (r, d), u, s in product(benchmarks, conflict, v, unate, shannon):
+        
+    path, file = name.rsplit('/', 1)
+    order = f"{path}/OrderFiles/{file.rsplit('.', 1)[0]}_varstoelim.txt"
 
-# for (name, order) in benchmarks:
-#     d2 = {"-b":name, "-v": order}
-#     runs.append(d2)
+    arg = {"-b": name, "-v": order, "-c": c, "-r": r, "-d": d, "-t": arguments.timeout, "-u": u, "-s": s, "--unateTimeout": arguments.timeout//2}
+    runs.append((arg, arguments.analyse, arguments.analysisdir))
 
-pool = Pool(processes=os.cpu_count()-1)
+pool = Pool() # 2 cores free, should be fine
 
-pool = pool.map_async(run_code, runs)
+pool = pool.starmap_async(run_code, runs)
 pool.wait()
 res = pool.get()
-
-params = {}
-
-benchmark_names = [x[0] for x in benchmarks]
 
 for row in res:
     if (len(row) > 1): # no error
@@ -145,7 +137,6 @@ for row in res:
             f6.write(bname+"\n")
     else:
         f7.write(row[0]+"\n")
-        
 
 f.close()
 f2.close()

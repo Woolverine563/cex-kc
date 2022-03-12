@@ -22,7 +22,7 @@ Cnf_Dat_t* m_FCnf = NULL;
 
 chrono_steady_time helper_time_measure_start;
 
-double repairTime, conflictCnfTime, satSolvingTime, unateTime;
+double repairTime, conflictCnfTime, satSolvingTime, unateTime, compressTime;
 
 int it = 0;
 int init_unates = 0;
@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
 	Abc_Ntk_t *FNtk;
 	Aig_Man_t *FAig, *SAig, *stoSAig;
 	Cnf_Dat_t* conflict_cnf;
-	int compressFreq = 4;
+	int compressFreq = 5;
 	int repaired = 0;
 
     parseOptions(argc, argv);
@@ -182,26 +182,30 @@ int main(int argc, char** argv) {
 					else {
 						TIMED(repairTime, repair(SAig))
 					}
-				}
 
-				if (it % compressFreq == 0) {
-					// perform compression every once in a while
+					TIMED(compressTime, if (it % compressFreq == 0) {
+						// perform compression every once in a while
 
-					int inCnt = Aig_ManObjNum(SAig);
-					SAig = compressAig(SAig);
-					int outCnt = Aig_ManObjNum(SAig);
+						int inCnt = Aig_ManObjNum(SAig);
+						SAig = compressAig(SAig);
+						int outCnt = Aig_ManObjNum(SAig);
 
-					if ((outCnt >= int(inCnt*0.99)) && (compressFreq < 1000)) {
-						// non substantial benefits are not useful
-						compressFreq *= 2;
+						if ((outCnt >= int(inCnt*0.99)) && (compressFreq < 1000)) {
+							// non substantial benefits are not useful
+							compressFreq *= 2;
+						}
+						else {
+							// compression costs more for larger Aigs
+							compressFreq = int(compressFreq * 1.2);
+						}
+
+						#ifdef DEBUG
+							assert(Aig_IsPositive(SAig));
+						#endif
 					}
 
-					#ifdef DEBUG
-						assert(Aig_IsPositive(SAig));
-					#endif
+					Aig_ManCleanup(SAig);)
 				}
-
-				Aig_ManCleanup(SAig);
 			}
 		}	
 	}
@@ -220,7 +224,7 @@ int main(int argc, char** argv) {
 	cout << "Took " << it << " iterations of algorithm : " << i << " number of counterexamples, " << repaired << " outputs repaired out of non-unate " << numY - tot_unates << " outputs" << endl;
 
 	cout << double(clock() - start)/CLOCKS_PER_SEC << " seconds" << endl;
-	cout << repairTime << " " << conflictCnfTime << " " << satSolvingTime << " " << unateTime << endl;
+	cout << repairTime << " " << conflictCnfTime << " " << satSolvingTime << " " << unateTime << " " << compressTime << endl;
 	
 	// Aig_ManDumpVerilog(SAig, (char*) (options.outFName).c_str());
 	Aig_ManStop(SAig);

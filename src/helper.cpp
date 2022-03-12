@@ -2266,8 +2266,9 @@ void Rectify2(Aig_Man_t* SAig, int k, int depth) {
 		funcs.push_back(Aig_NotCond(Aig_ManConst0(G), pi.Y[i]));
 	}
 
-	pObj = Aig_ComposeVec(G, Aig_ManCo(G, 0)->pFanin0, funcs, vars);
-	assert(Aig_ObjIsAnd(pObj));
+	// wrong check again
+	Aig_ComposeVec(G, Aig_ManCo(G, 0)->pFanin0, funcs, vars);
+	// assert(Aig_ObjIsAnd(pObj));
 
 	pObj = Aig_ManConst1(G);
 
@@ -2328,7 +2329,8 @@ void Rectify3(Aig_Man_t* SAig, int k, int depth) {
 		funcs.push_back(Aig_NotCond(Aig_ManConst0(F), pi.Y[i]));
 	}
 
-	assert(Aig_ObjIsAnd(Aig_ComposeVec(F, pObj, funcs, vars)));
+	// wrong check, need to evaluate aig and semantic check if y_k and ybar_k
+	Aig_ComposeVec(F, pObj, funcs, vars);
 
 	pObj = Aig_ManConst1(F);
 
