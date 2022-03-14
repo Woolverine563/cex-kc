@@ -12,9 +12,13 @@ def run_code(kwargs: dict, analyse: bool, analysisdir: str):
 
     if kwargs.pop('-u', False):
         args.append("-u")
+    else:
+        args.append("")
 
     if kwargs.pop('-s', False):
         args.append("-s")
+    else:
+        args.append("")
 
     for k,v in kwargs.items():
         args.append(k)
@@ -113,7 +117,7 @@ for name, c, (r, d), u, s in product(benchmarks, conflict, v, unate, shannon):
     arg = {"-b": name, "-v": order, "-c": c, "-r": r, "-d": d, "-t": arguments.timeout, "-u": u, "-s": s, "--unateTimeout": arguments.timeout//2}
     runs.append((arg, arguments.analyse, arguments.analysisdir))
 
-pool = Pool() # 2 cores free, should be fine
+pool = Pool(processes=(os.cpu_count()*3)//4) # 2 cores free, should be fine
 
 pool = pool.starmap_async(run_code, runs)
 pool.wait()

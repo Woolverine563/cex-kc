@@ -51,7 +51,6 @@ int main(int argc, char** argv) {
 				varsXF, varsXS,
 				varsYF, varsYS,
 				name2IdF, id2NameF);
-	Abc_NtkDelete(FNtk);
 
 	vector<int> unates(numY, -1);
 
@@ -229,6 +228,7 @@ int main(int argc, char** argv) {
 	// Aig_ManDumpVerilog(SAig, (char*) (options.outFName).c_str());
 	Aig_ManStop(SAig);
 	Aig_ManStop(stoSAig);
+	Abc_NtkDelete(FNtk);
 
 	return 0;
 }
