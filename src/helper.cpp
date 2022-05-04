@@ -2275,7 +2275,7 @@ void Rectify2(Aig_Man_t* SAig, int k, int depth) {
 	for (auto &pObj2 : savedObjs) {
 		Aig_Obj_t* pVal = (Aig_Obj_t*) pObj2->pData;
 		#ifdef DEBUG
-			assert(Aig_SupportSize(G, Aig_Regular(pVal)) <= 2);
+			// assert(Aig_SupportSize(G, Aig_Regular(pVal)) <= 2);
 		#endif
 
 		pObj = Aig_And(G, pObj, Aig_Not(Aig_XOR(G, pVal, pObj2)));
@@ -2499,8 +2499,23 @@ void repair(Aig_Man_t* SAig) {
 	while (options.fixAllIndices);
 }
 
-int checkUnate(Aig_Man_t* SAig, vector<int> &unates) {
-	auto FAig = PositiveToNormal(SAig);
+int checkUnate(Aig_Man_t* SAig, vector<int> &unates, int repairedIndex) {
+	Aig_Man_t* quant_SAig = Aig_ManDupSimpleDfs(SAig);
+
+	vector<int> vars;
+	vector<Aig_Obj_t*> funcs;
+
+	for (int i = 0; i < repairedIndex; i++) {
+		vars.push_back(varsYS[i]);
+		vars.push_back(varsYS[i] + numOrigInputs);
+
+		funcs.push_back(Aig_ManConst1(quant_SAig));
+		funcs.push_back(Aig_ManConst1(quant_SAig));
+	}
+
+	patchCo(quant_SAig, Aig_ComposeVec(quant_SAig, Aig_ManCo(quant_SAig, 0)->pFanin0, funcs, vars));
+
+	auto FAig = PositiveToNormal(quant_SAig);
 
 	int x = 0;
 	while(true) {
@@ -2532,6 +2547,7 @@ int checkUnate(Aig_Man_t* SAig, vector<int> &unates) {
 	}
 
 	Aig_ManStop(FAig);
+	Aig_ManStop(quant_SAig);
 	return ans;
 }
 

@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
 
 	// only semantic unates
 	if (options.unate) {		
-		TIMED(unateTime, int cnt = checkUnate(SAig, unates);
+		TIMED(unateTime, int cnt = checkUnate(SAig, unates, pi.idx);
 		init_unates += cnt;
 		tot_unates += cnt;
 		setUnatesSaig(SAig, unates);)
@@ -108,16 +108,16 @@ int main(int argc, char** argv) {
 
 				// total unates seem to be same as initial unates! So no need to unate check again!
 
-				// int cnt = checkUnate(SAig, unates);
-				// tot_unates += cnt;
-				// setUnatesSaig(SAig, unates);
-				// Aig_ManCleanup(SAig);
+				int cnt = checkUnate(SAig, unates, pi.idx);
+				tot_unates += cnt;
+				setUnatesSaig(SAig, unates);
+				Aig_ManCleanup(SAig);
 
-				// if (cnt > 0) {
-				// 	FAig = PositiveToNormalWithNeg(SAig);
-				// 	m_FCnf = Cnf_Derive(FAig, 0);
-				// 	Aig_ManStop(FAig);
-				// }
+				if (cnt > 0) {
+					FAig = PositiveToNormalWithNeg(SAig);
+					m_FCnf = Cnf_Derive(FAig, 0);
+					Aig_ManStop(FAig);
+				}
 
 				begSize = Aig_ManObjNum(SAig);
 				if (options.useShannon) {

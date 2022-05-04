@@ -1,5 +1,5 @@
 import argparse
-from subprocess import run, check_output
+from subprocess import run, check_output, STDOUT
 from multiprocessing import Pool
 from csv import writer
 from itertools import product
@@ -27,7 +27,7 @@ def run_code(kwargs: dict, analyse: bool, analysisdir: str):
     bname = kwargs["-b"]
 
     try:
-        oup = check_output(args)
+        oup = check_output(args, stderr=STDOUT)
         hash = md5(' '.join(args).encode()).hexdigest()
 
         print(oup.decode())

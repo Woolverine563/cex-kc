@@ -231,7 +231,7 @@ bool 			Aig_IsPositive(Aig_Man_t* SAig);
 void 			repair(Aig_Man_t* SAig);
 bool 			isConflict(Aig_Man_t* SAig, int idx);
 void 			setUnatesSaig(Aig_Man_t* SAig, vector<int> &unates);
-int 			checkUnate(Aig_Man_t* SAig, vector<int> &unates);
+int 			checkUnate(Aig_Man_t* SAig, vector<int> &unates, int repairedIndex);
 void 			doShannonExp(Aig_Man_t* SAig, int idx);
 Cnf_Dat_t* 		getErrorFormulaCNF(Aig_Man_t* SAig);
 Cnf_Dat_t* 		getConflictFormulaCNF(Aig_Man_t* SAig, int idx);
