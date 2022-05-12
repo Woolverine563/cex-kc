@@ -114,6 +114,7 @@ struct optionStruct {
 	int 	depth;
 	int 	unateTimeout;
 	bool	useShannon;
+	bool 	allowUnivQuantify;
 };
 
 struct ConflictCounterEx {

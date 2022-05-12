@@ -39,6 +39,7 @@ void parseOptions(int argc, char * argv[]) {
 		("u, unate", "Specifies whether to use unates or not", cxxopts::value<bool>(options.unate))
 		("s, shannon", "Use shannon expansion", cxxopts::value<bool>(options.useShannon))
 		("unateTimeout", "Timeout for fixed-point unate computation", cxxopts::value<int>(options.unateTimeout)->default_value("600"))
+		("q, allowUnivQuantify", "Allows universal quantification in cut choices", cxxopts::value<bool>(options.allowUnivQuantify))
 		("h, help", "Print this help");
 		
 	// optParser.parse_positional(vector<string>({"benchmark", "varsOrder"}));
@@ -1842,21 +1843,27 @@ Aig_Obj_t* coreAndIntersect(Aig_Man_t* SAig, Aig_Man_t* Aig1) {
 	// need to put out this check for now because pObj is not an Aig, also which Aig to use even?
 
 	#ifdef DEBUG
-	// 	vector<int> vars;
-	// 	vector<Aig_Obj_t*> funcs;
-	// 	for (auto i : varsYS) {
-	// 		vars.push_back(i + numOrigInputs);
-	// 		funcs.push_back(Aig_Not(Aig_ManCi(SAig, i)));
-	// 	}
-	// 	auto tempObj = Aig_ComposeVec(SAig, pObj, funcs, vars);
-	// 	Aig_ObjCreateCo(Aig2, Aig_Not(Aig_Transfer(SAig, Aig2, tempObj, 2*numOrigInputs)));
-	// 	auto Cnf3 = Cnf_Derive(Aig2, 0);
-	// 	auto solver2 = sat_solver_new();
-	// 	for (int c = 0; c < Cnf3->nClauses; c++) {
-	// 		sat_solver_addclause(solver2, Cnf3->pClauses[c], Cnf3->pClauses[c+1]);
-	// 	}
-	// 	assert(sat_solver_solve(solver2, NULL, NULL, 0, 0, 0, 0) == l_False);
-	// 	sat_solver_delete(solver2);
+		auto F = Aig_ManDupSimpleDfs(SAig);
+		auto pObj2 = Aig_ManCo(F, 0)->pFanin0;
+		pObj2 = Aig_And(F, pObj2, Aig_Not(Aig_Transfer(SAig, F, pObj, 2*numOrigInputs)));
+		
+		vector<int> vars;
+		vector<Aig_Obj_t*> funcs;
+		for (auto i : varsYS) {
+			vars.push_back(i + numOrigInputs);
+			funcs.push_back(Aig_Not(Aig_ManCi(F, i)));
+		}
+
+		Aig_ObjPatchFanin0(F, Aig_ManCo(F, 0), Aig_ComposeVec(F, pObj2, funcs, vars));
+		auto Cnf3 = Cnf_Derive(F, 0);
+		auto solver2 = sat_solver_new();
+		for (int c = 0; c < Cnf3->nClauses; c++) {
+			sat_solver_addclause(solver2, Cnf3->pClauses[c], Cnf3->pClauses[c+1]);
+		}
+		assert(sat_solver_solve(solver2, NULL, NULL, 0, 0, 0, 0) == l_False);
+		sat_solver_delete(solver2);
+		Cnf_DataFree(Cnf3);
+		Aig_ManStop(F);
 	#endif
 
 	Intp_ManFree(proof);
@@ -2152,8 +2159,8 @@ void Rectify(Aig_Man_t* SAig, int k) {
 	patchCo(SAig, clause);
 }
 
-// returns the depth
-void postDfs(Aig_Man_t* Aig, Aig_Obj_t* pObj, int k) {
+// stores the depth for each node
+void postDfs(Aig_Man_t* Aig, Aig_Obj_t* pObj, int k, bool univQuantify) {
 	assert(!Aig_IsComplement(pObj));
 	assert(!Aig_ObjIsCo(pObj));
 
@@ -2163,7 +2170,7 @@ void postDfs(Aig_Man_t* Aig, Aig_Obj_t* pObj, int k) {
 		return;
 	}
 	else if (Aig_ObjIsCi(pObj) || Aig_ObjIsConst1(pObj)) {
-		if ((Id != Aig_ObjId(Aig_ManCi(Aig, varsYS[k]))) && (Id != Aig_ObjId(Aig_ManCi(Aig, varsYS[k] + numOrigInputs)))) {
+		if (univQuantify || ((Id != Aig_ObjId(Aig_ManCi(Aig, varsYS[k]))) && (Id != Aig_ObjId(Aig_ManCi(Aig, varsYS[k] + numOrigInputs))))) {
 			pObj->iData = 1;
 		}
 		else {
@@ -2174,27 +2181,27 @@ void postDfs(Aig_Man_t* Aig, Aig_Obj_t* pObj, int k) {
 		auto c1 = Aig_ObjFanin0(pObj);
 		auto c2 = Aig_ObjFanin1(pObj);
 
-		postDfs(Aig, c1, k);
-		postDfs(Aig, c2, k);
+		postDfs(Aig, c1, k, univQuantify);
+		postDfs(Aig, c2, k, univQuantify);
 
 		if ((c1->iData == -1) || (c2->iData == -1)) {
 			pObj->iData = -1;
 		}
 		else {
 			pObj->iData = max(c1->iData, c2->iData) + 1;
-	}
+		}
 	}
 	else {
-	assert(false);
+		assert(false);
 	}
 }
 
-vector<Aig_Obj_t*> chooseCut(Aig_Man_t* Aig, Aig_Obj_t* pRoot, int k, int depth) {
+vector<Aig_Obj_t*> chooseCut(Aig_Man_t* Aig, Aig_Obj_t* pRoot, int k, int depth, bool univQuantify) {
 	vector<Aig_Obj_t*> savedObjs, retObjs;
 	Aig_ManCleanData(Aig);
 
 	Aig_Obj_t* pObj = Aig_Regular(pRoot);
-	postDfs(Aig, pObj, k);
+	postDfs(Aig, pObj, k, univQuantify);
 
 
 	int i;
@@ -2213,11 +2220,11 @@ vector<Aig_Obj_t*> chooseCut(Aig_Man_t* Aig, Aig_Obj_t* pRoot, int k, int depth)
 	for (auto i : savedObjs) {
 		if (i->iData > 0) {
 			retObjs.push_back(i);
+		}
 
-			if (Aig_ObjIsAnd(i)) {
-				Aig_ObjFanin0(i)->iData -= 1;
-				Aig_ObjFanin1(i)->iData -= 1;
-			}
+		if (Aig_ObjIsAnd(i)) {
+			Aig_ObjFanin0(i)->iData -= 1;
+			Aig_ObjFanin1(i)->iData -= 1;
 		}
 	}
 
@@ -2226,7 +2233,7 @@ vector<Aig_Obj_t*> chooseCut(Aig_Man_t* Aig, Aig_Obj_t* pRoot, int k, int depth)
 	return retObjs;
 }
 
-void Rectify2(Aig_Man_t* SAig, int k, int depth) {
+void Rectify2(Aig_Man_t* SAig, int k, int depth, bool allowUnivQuantify) {
 	Aig_Obj_t *pObj;
 	Aig_Man_t* G = Aig_ManDupSimpleDfs(SAig);
 	
@@ -2250,7 +2257,7 @@ void Rectify2(Aig_Man_t* SAig, int k, int depth) {
 	assert(!Aig_ObjIsCo(Aig_Regular(pObj)));
 	Aig_ObjPatchFanin0(G, Aig_ManCo(G, 0), pObj);
 	
-	vector<Aig_Obj_t*> savedObjs = chooseCut(G, pObj, k, depth);
+	vector<Aig_Obj_t*> savedObjs = chooseCut(G, pObj, k, depth, allowUnivQuantify);
 
 	assert(savedObjs.size() > 0);
 
@@ -2282,6 +2289,15 @@ void Rectify2(Aig_Man_t* SAig, int k, int depth) {
 	}
 
 	assert(!Aig_ObjIsCo(Aig_Regular(pObj)));
+
+	// order of y_k and ybar_k would matter, but hopefully it won't affect things too much!
+
+	if (allowUnivQuantify) {
+		pObj = Aig_And(G, Aig_Compose(G, pObj, Aig_ManConst0(G), varsYS[k]), Aig_Compose(G, pObj, Aig_ManConst1(G), varsYS[k]));
+
+		pObj = Aig_And(G, Aig_Compose(G, pObj, Aig_ManConst0(G), varsYS[k] + numOrigInputs), Aig_Compose(G, pObj, Aig_ManConst1(G), varsYS[k] + numOrigInputs));
+	}
+
 	Aig_ObjPatchFanin0(G, Aig_ManCo(G, 0), pObj);
 
 	Aig_ManCleanup(G);
@@ -2295,7 +2311,7 @@ void Rectify2(Aig_Man_t* SAig, int k, int depth) {
 	Aig_ManStop(G);
 }
 
-void Rectify3(Aig_Man_t* SAig, int k, int depth) {
+void Rectify3(Aig_Man_t* SAig, int k, int depth, bool allowUnivQuantify) {
 	Aig_Obj_t *pObj;
 	Aig_Man_t* F = Aig_ManDupSimpleDfs(SAig);
 
@@ -2315,7 +2331,7 @@ void Rectify3(Aig_Man_t* SAig, int k, int depth) {
 	}
 
 	pObj = Aig_ComposeVec(F, Aig_ManCo(F, 0)->pFanin0, funcs, vars);
-	vector<Aig_Obj_t*> savedObjs = chooseCut(F, pObj, k, depth);
+	vector<Aig_Obj_t*> savedObjs = chooseCut(F, pObj, k, depth, false);
 
 	vars.clear();
 	funcs.clear();
@@ -2468,10 +2484,12 @@ void repair(Aig_Man_t* SAig) {
 			Rectify(SAig, k);
 		}
 		else if (options.rectifyProc == 2) {
-			Rectify2(SAig, k, options.depth);
+			assert(false);
+			// rectify2 is buggy!
+			Rectify2(SAig, k, options.depth, options.allowUnivQuantify);
 		}
 		else if (options.rectifyProc == 3) {
-			Rectify3(SAig, k, options.depth);
+			Rectify3(SAig, k, options.depth, options.allowUnivQuantify);
 		}
 		else {
 			assert(false);
