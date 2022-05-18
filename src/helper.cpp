@@ -1097,12 +1097,12 @@ string getFileName(string s) {
 	return(s);
 }
 
-int checkUnateSyntacticAll(Aig_Man_t* FAig, vector<int>&unate) {
+int checkUnateSyntacticAll(Aig_Man_t* FAig, vector<int>&unate, int beginIdx) {
 	Nnf_Man nnfSyntatic(FAig);
 	assert(nnfSyntatic.getCiNum() == numOrigInputs);
 
 	int numUnate = 0;
-	for(int i = 0; i < numY; ++i) {
+	for(int i = beginIdx; i < numY; ++i) {
 		if (unate[i] == -1) {
 			int refPos = nnfSyntatic.getCiPos(varsYF[i])->getNumRef();
 			int refNeg = nnfSyntatic.getCiNeg(varsYF[i])->getNumRef();
@@ -1123,7 +1123,7 @@ int checkUnateSyntacticAll(Aig_Man_t* FAig, vector<int>&unate) {
 }
 
 //Temporarily coded by Shetal
-int checkUnateSemAll(Aig_Man_t* FAig, vector<int>&unate) { 
+int checkUnateSemAll(Aig_Man_t* FAig, vector<int>&unate, int beginIdx) { 
 	// Aig_ManPrintStats(FAig);
 
 	auto unate_start = std::chrono::steady_clock::now();
@@ -1203,7 +1203,7 @@ int checkUnateSemAll(Aig_Man_t* FAig, vector<int>&unate) {
 
 	do {
 		numUnate = 0;
-		for (int i = 0; i < numY; ++i)
+		for (int i = beginIdx; i < numY; ++i)
 		{
 	//		cout << "Checking @ " << i << " for " << varsYF[i] << " YIndex = " << yIndex << "Unate " << unate [i] << endl;	
 			for (int j = 0; j < numY; j++)
@@ -1597,7 +1597,7 @@ list<set<Lit>> resolveClauses(list<set<Lit>> lClauses, Lit tsVarMax) {
 }
 
 Aig_Obj_t* createNodeForTsLit(Aig_Man_t* SAig, const unordered_map<int, vector<vector<Lit>>> &tsDeps,  unordered_map<int, 
-								pair<bool, Aig_Obj_t*>> &visLit, Lit tsRoot, Lit tsVarMax, int lifter) {
+								pair<bool, Aig_Obj_t*>> &visLit, Lit tsRoot, int tsVarMax, int lifter) {
 	// int tsRoot = tsRoot.getVar();
 	int tsVar = tsRoot.getVar();
 	Aig_Obj_t* pObj;
@@ -2305,7 +2305,7 @@ void Rectify2(Aig_Man_t* SAig, int k, int depth, bool allowUnivQuantify) {
 	auto generalize = coreAndIntersect(SAig, G);
 
 	pObj = Aig_ManCo(SAig, 0)->pFanin0;
-	assert(!Aig_ObjIsCo(Aig_Regular(pObj)));
+  	assert(!Aig_ObjIsCo(Aig_Regular(pObj)));
 	patchCo(SAig, Aig_And(SAig, pObj, generalize));
 
 	Aig_ManStop(G);
@@ -2537,7 +2537,7 @@ int checkUnate(Aig_Man_t* SAig, vector<int> &unates, int repairedIndex) {
 
 	int x = 0;
 	while(true) {
-		int cnt = checkUnateSyntacticAll(FAig, unates);
+		int cnt = checkUnateSyntacticAll(FAig, unates, repairedIndex);
 		if (cnt > 0) {
 			x += cnt;
 			auto temp = NormalToPositive(FAig);
@@ -2554,7 +2554,7 @@ int checkUnate(Aig_Man_t* SAig, vector<int> &unates, int repairedIndex) {
 
 	int y;
 	int ans = x;
-	while ((y = checkUnateSemAll(FAig, unates)) > 0) {
+	while ((y = checkUnateSemAll(FAig, unates, repairedIndex)) > 0) {
 		// cout << "Semantic : " << y << endl;
 		ans += y;
 		auto temp = NormalToPositive(FAig);
@@ -2803,7 +2803,7 @@ Cnf_Dat_t* getConflictFormulaCNF(Aig_Man_t* SAig, int idx) {
 }
 
 Cnf_Dat_t* getConflictFormulaCNF2(Aig_Man_t* SAig, int idx) {
-		Aig_Obj_t* pObj;
+	Aig_Obj_t* pObj;
 	Aig_Man_t* formula = Aig_ManDupSimpleDfs(SAig);
 
 	vector<int> vars;
