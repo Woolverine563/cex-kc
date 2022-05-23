@@ -105,6 +105,9 @@ int main(int argc, char** argv) {
 
 			if (options.unate && (unates[pi.idx] != -1)) {
 				pi.idx++;
+				if (options.dynamicOrdering) {
+					calcLeastOccurrenceSAig(SAig, pi.idx);
+				}
 
 				// total unates seem to be same as initial unates! So no need to unate check again!
 
@@ -144,6 +147,9 @@ int main(int argc, char** argv) {
 				if (ans == l_False) {
 					repaired++;
 					pi.idx++;
+					if (options.dynamicOrdering) {
+						calcLeastOccurrenceSAig(SAig, pi.idx);
+					}
 
 					// if (options.unate) {
 					// 	int cnt = checkUnate(SAig, unates);

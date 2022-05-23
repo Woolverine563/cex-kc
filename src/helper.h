@@ -115,6 +115,7 @@ struct optionStruct {
 	int 	unateTimeout;
 	bool	useShannon;
 	bool 	allowUnivQuantify;
+	bool 	dynamicOrdering;
 };
 
 struct ConflictCounterEx {
@@ -238,6 +239,7 @@ Cnf_Dat_t* 		getErrorFormulaCNF(Aig_Man_t* SAig);
 Cnf_Dat_t* 		getConflictFormulaCNF(Aig_Man_t* SAig, int idx);
 Cnf_Dat_t* 		getConflictFormulaCNF2(Aig_Man_t* SAig, int idx);
 lbool 			solveAndModel(Aig_Man_t* SAig, Cnf_Dat_t* cnf);
+void 			calcLeastOccurrenceSAig(Aig_Man_t *SAig, int minIdx);
 
 template<class T>
 void print(T v) {

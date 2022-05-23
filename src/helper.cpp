@@ -40,6 +40,7 @@ void parseOptions(int argc, char * argv[]) {
 		("s, shannon", "Use shannon expansion", cxxopts::value<bool>(options.useShannon))
 		("unateTimeout", "Timeout for fixed-point unate computation", cxxopts::value<int>(options.unateTimeout)->default_value("600"))
 		("q, allowUnivQuantify", "Allows universal quantification in cut choices", cxxopts::value<bool>(options.allowUnivQuantify))
+		("o, dynamicOrdering", "Use dynamic ordering", cxxopts::value<bool>(options.dynamicOrdering))
 		("h, help", "Print this help");
 		
 	// optParser.parse_positional(vector<string>({"benchmark", "varsOrder"}));
@@ -2936,4 +2937,56 @@ lbool solveAndModel(Aig_Man_t* SAig, Cnf_Dat_t* cnf) {
 	sat_solver_delete(solver);
 
 	return status;
+}
+
+//assumes DFS Ordering! Ensure patchCo before this!
+//fixes varsYS such that correct ordering will follow!
+void calcLeastOccurrenceSAig(Aig_Man_t* SAig, int minIdx) {
+	if (minIdx == numY)
+		return;
+	Aig_Obj_t *pObj;
+	int i;
+	int cnt = (numY - minIdx);
+	unordered_map<int, vector<bool>> nodeSupport;
+	vector<bool> initVec(cnt, false);
+	vector<int> ranks(cnt, 0);
+
+	for (int i = 0; i < numX; ++i)
+	{
+		nodeSupport[Aig_ManCi(SAig, varsXS[i])->Id] = initVec;
+	}
+	for (int i = 0; i < numY; ++i)
+	{
+		vector<bool> updateVec(cnt, false);
+		if (i >= minIdx) {
+			updateVec[i - minIdx] = true;
+		}
+		nodeSupport[Aig_ManCi(SAig, varsYS[i])->Id] = updateVec;
+		nodeSupport[Aig_ManCi(SAig, varsYS[i] + numOrigInputs)->Id] = updateVec;
+	}
+	Aig_ManForEachObj(SAig, pObj, i)
+	{
+		if (Aig_ObjId(pObj) > 2*numOrigInputs)
+		{
+			vector<bool> updateVec(cnt, false), lVec(cnt, false), rVec(cnt, false);
+			if (Aig_ObjFanin0(pObj) != NULL)
+				lVec = nodeSupport[Aig_ObjFanin0(pObj)->Id];
+			if (Aig_ObjFanin1(pObj) != NULL)
+				rVec = nodeSupport[Aig_ObjFanin1(pObj)->Id];
+			for (int i = 0; i < numY - minIdx; ++i)
+			{
+				updateVec[i] = lVec[i] || rVec[i];
+				if (updateVec[i])
+				{
+					ranks[i]++;
+				}
+			}
+			nodeSupport[pObj->Id] = updateVec;
+		}
+	}
+	
+	auto it = min_element(ranks.begin(), ranks.end());
+	assert(it != ranks.end());
+
+	swap(varsYS[minIdx + it - ranks.begin()], varsYS[minIdx]);
 }
