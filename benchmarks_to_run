@@ -32,7 +32,6 @@ benchmarks/QBFEval2018/verilog/ltl2dba_C2-8_comp4_REAL.sat.v
 benchmarks/QBFEval2017/verilog/query31_query50_1344n.v
 benchmarks/QBFEval2018/verilog/neclaftp2002.v
 benchmarks/QBFEval2017/verilog/sortnetsort9.AE.stepl.007.v
-benchmarks/QBFEval2018/verilog/AR-fixpoint-10.v
 benchmarks/QBFEval2018/verilog/stmt19_133_217.v
 benchmarks/QBFEval2018/verilog/query42_query45_1344n.v
 benchmarks/QBFEval2017/verilog/usb-phy-fixpoint-4.v
