@@ -162,6 +162,28 @@ int main(int argc, char **argv)
 					FAig = PositiveToNormalWithNeg(SAig);
 					FCnf = Cnf_Derive(FAig, 0);
 					Aig_ManStop(FAig);
+
+					sat_solver_restart(conflictSolver);
+
+					TIMED(
+						conflictCnfTime,
+						if (options.conflictCheck == 1) {
+							conflict_cnf = getConflictFormulaCNF(SAig, pi.idx);
+						} else {
+							conflict_cnf = getConflictFormulaCNF2(SAig, pi.idx);
+							// this is the newer conflict formula
+						})
+
+					alreadyFalse = !addCnfToSolver(conflictSolver, conflict_cnf);
+					for (int i = 0; i < numX; i++)
+					{
+						varsCNF[i] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))];
+					}
+					for (int i = 0; i < numY; i++)
+					{
+						varsCNF[i + numX] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))];
+					}
+					Cnf_DataFree(conflict_cnf);
 				}
 
 				begSize = Aig_ManObjNum(SAig);
@@ -238,9 +260,9 @@ int main(int argc, char **argv)
 					i++;
 					assert(ans != l_Undef);
 
-#ifdef DEBUG
-					assert(isConflict(SAig, pi.idx));
-#endif
+					#ifdef DEBUG
+						assert(isConflict(SAig, pi.idx));
+					#endif
 
 					if (options.useShannon && (Aig_ManObjNum(SAig) >= int(1.75 * begSize)))
 					{
@@ -248,6 +270,7 @@ int main(int argc, char **argv)
 						Aig_ManStop(SAig);
 						SAig = Aig_ManDupSimpleDfs(stoSAig);
 						// known to fix all conflicts!
+						// next SAT check would yield false now!
 					}
 					else
 					{
