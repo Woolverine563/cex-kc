@@ -9,3 +9,6 @@ partial_results/
 sdd.csv
 *.nnf
 *.sdd
+data/
+data_zips/
+analysis.txt

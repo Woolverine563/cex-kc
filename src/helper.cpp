@@ -1942,6 +1942,8 @@ Aig_Obj_t *coreAndIntersect(Aig_Man_t *SAig, Aig_Man_t *Aig1)
 {
 	auto Cnf1 = Cnf_Derive(Aig1, 0);
 
+	// 
+
 	auto vec = ABC_ALLOC(int *, FCnf->nClauses + 1);
 	vec[0] = ABC_ALLOC(int, FCnf->nLiterals);
 	memcpy(vec[0], FCnf->pClauses[0], (sizeof(int)) * (FCnf->nLiterals));
@@ -1956,6 +1958,8 @@ Aig_Obj_t *coreAndIntersect(Aig_Man_t *SAig, Aig_Man_t *Aig1)
 	unordered_map<int, int> cnf2_Map;
 
 	// cnf1 and cnf2 on diff variables, need to fix
+
+	// can also equate them :)
 	assert(min(Cnf1->nVars, FCnf->nVars) >= numX + numY);
 	for (int i = 0; i < numX + numY + 1; i++)
 	{
@@ -2593,17 +2597,22 @@ Aig_Obj_t *Rectify2(Aig_Man_t *SAig, int k, int depth, bool allowUnivQuantify)
 
 	assert(!Aig_ObjIsCo(Aig_Regular(pObj)));
 
-	// order of y_k and ybar_k would matter, but hopefully it won't affect things too much!
+	// only three copies are made now, instead of original four
 
 	if (allowUnivQuantify)
 	{
-		pObj = Aig_And(G, Aig_Compose(G, pObj, Aig_ManConst0(G), varsYS[k]), Aig_Compose(G, pObj, Aig_ManConst1(G), varsYS[k]));
+		vars = {varsYS[k], varsYS[k] + numOrigInputs};
+		funcs = {Aig_ManConst1(G), Aig_ManConst1(G)};
+		auto pObj2 = Aig_ComposeVec(G, pObj, funcs, vars);
 
-		pObj = Aig_And(G, Aig_Compose(G, pObj, Aig_ManConst0(G), varsYS[k] + numOrigInputs), Aig_Compose(G, pObj, Aig_ManConst1(G), varsYS[k] + numOrigInputs));
+		funcs = {Aig_ManConst1(G), Aig_ManConst0(G)};
+		pObj2 = Aig_And(G, pObj2, Aig_Not(Aig_ComposeVec(G, pObj, funcs, vars)));
+
+		funcs = {Aig_ManConst0(G), Aig_ManConst1(G)};
+		pObj = Aig_And(G, pObj2, Aig_Not(Aig_ComposeVec(G, pObj, funcs, vars)));
 	}
 
 	Aig_ObjPatchFanin0(G, Aig_ManCo(G, 0), pObj);
-
 	Aig_ManCleanup(G);
 
 	auto generalize = coreAndIntersect(SAig, G);
@@ -2674,7 +2683,7 @@ Aig_Obj_t *Rectify3(Aig_Man_t *SAig, int k, int depth, bool allowUnivQuantify)
 
 	auto Fnew = Aig_ManDupSimpleDfs(F);
 
-	auto Cnf = Cnf_DeriveWithF(Fnew);
+	TIMED(rectifyCnfTime, auto Cnf = Cnf_DeriveWithF(Fnew);)
 
 	unordered_map<int, int> invMap;
 	for (int i = 0; i < savedObjs.size(); i++)
@@ -2682,23 +2691,25 @@ Aig_Obj_t *Rectify3(Aig_Man_t *SAig, int k, int depth, bool allowUnivQuantify)
 		invMap[Cnf->pVarNums[Aig_ObjId(Aig_ObjFanin0(Aig_ManCo(Fnew, i + 1)))]] = i;
 	}
 
-	auto solver = sat_solver_new();
-	sat_solver_store_alloc(solver);
+	TIMED(rectifyUnsatCoreTime, 
+		auto solver = sat_solver_new();
+		sat_solver_store_alloc(solver);
 
-	for (int i = 0; i < Cnf->nClauses; i++)
-	{
-		sat_solver_addclause(solver, Cnf->pClauses[i], Cnf->pClauses[i + 1]);
-	}
+		for (int i = 0; i < Cnf->nClauses; i++)
+		{
+			sat_solver_addclause(solver, Cnf->pClauses[i], Cnf->pClauses[i + 1]);
+		}
 
-	sat_solver_store_mark_roots(solver);
+		sat_solver_store_mark_roots(solver);
 
-	lbool result = sat_solver_solve(solver, NULL, NULL, 0, 0, 0, 0);
+		lbool result = sat_solver_solve(solver, NULL, NULL, 0, 0, 0, 0);
 
-	assert(result == l_False);
+		assert(result == l_False);
 
-	auto pSatCnf = (Sto_Man_t *)sat_solver_store_release(solver);
-	auto proof = Intp_ManAlloc();
-	auto core = (Vec_Int_t *)Intp_ManUnsatCore(proof, pSatCnf, 0, 0);
+		auto pSatCnf = (Sto_Man_t *)sat_solver_store_release(solver);
+		auto proof = Intp_ManAlloc();
+		auto core = (Vec_Int_t *)Intp_ManUnsatCore(proof, pSatCnf, 0, 0);
+	)
 
 	sort(core->pArray, core->pArray + core->nSize);
 
@@ -2804,7 +2815,6 @@ void repair(Aig_Man_t *SAig)
 		}
 		else if (options.rectifyProc == 2)
 		{
-			assert(false);
 			// rectify2 is buggy!
 			patch = Rectify2(SAig, k, options.depth, options.allowUnivQuantify);
 		}

@@ -194,6 +194,7 @@ extern optionStruct options;
 extern vector<vector<int>> k2Trend;
 extern ConflictCounterEx pi;
 extern int it;
+extern double repairTime, rectifyCnfTime, rectifyUnsatCoreTime, conflictCnfTime, satSolvingTime, unateTime, compressTime;
 
 int CommandExecute(Abc_Frame_t *pAbc, string cmd);
 vector<string> tokenize(const string &p_pcstStr, char delim);

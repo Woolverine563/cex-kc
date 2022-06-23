@@ -25,7 +25,7 @@ Cnf_Dat_t *FCnf = NULL;
 
 chrono_steady_time helper_time_measure_start;
 
-double repairTime, conflictCnfTime, satSolvingTime, unateTime, compressTime;
+double repairTime, rectifyCnfTime, rectifyUnsatCoreTime, conflictCnfTime, satSolvingTime, unateTime, compressTime;
 
 int it = 0;
 int init_unates = 0;
@@ -321,7 +321,7 @@ int main(int argc, char **argv)
 	cout << "Took " << it << " iterations of algorithm : " << i << " number of counterexamples, " << repaired << " outputs repaired out of non-unate " << numY - tot_unates << " outputs" << endl;
 
 	cout << double(clock() - start) / CLOCKS_PER_SEC << " seconds" << endl;
-	cout << repairTime << " " << conflictCnfTime << " " << satSolvingTime << " " << unateTime << " " << compressTime << endl;
+	cout << repairTime << " " << conflictCnfTime << " " << satSolvingTime << " " << unateTime << " " << compressTime << " " << rectifyCnfTime << " " << rectifyUnsatCoreTime << endl;
 
 	// Aig_ManDumpVerilog(SAig, (char*) (options.outFName).c_str());
 	Aig_ManStop(SAig);

@@ -20,6 +20,11 @@ def run_code(kwargs: dict, analyse: bool, analysisdir: str):
     else:
         args.append("")
 
+    if kwargs.pop('-o', False):
+        args.append("-o")
+    else:
+        args.append("")
+
     for k,v in kwargs.items():
         args.append(k)
         args.append(str(v))
@@ -77,7 +82,7 @@ f7 = open(f'{arguments.outdir}/error', 'w')
 wr = writer(f)
 
 # wr.writerow(["Benchmark", "Input NNF size", "Time", "SDD size"])
-wr.writerow(["Benchmark", "Initial size", "Final size", "Initial unates", "Final unates", "Number of iterations", "Number of cex", "Outputs fixed", "Total outputs", "Time taken", "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime", "compressTime"])
+wr.writerow(["Benchmark", "Initial size", "Final size", "Initial unates", "Final unates", "Number of iterations", "Number of cex", "Outputs fixed", "Total outputs", "Time taken", "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime", "compressTime", "rectifyCnfTime", "rectifyUnsatCoreTime"])
         
 if (not arguments.nocompile):
     os.system("make clean")
@@ -96,6 +101,7 @@ rectify = [3]
 conflict = [2]
 unate = [True, False]
 shannon = [False]
+dynamic = [False]
 benchmarks = []
 
 with open(arguments.file, 'r') as f:
@@ -109,12 +115,12 @@ runs = []
 
 v = list(product(rectify, depth)) # + [("1", "0")]
 
-for name, c, (r, d), u, s in product(benchmarks, conflict, v, unate, shannon):
+for name, c, (r, d), u, s in product(benchmarks, conflict, v, unate, shannon, dynamic):
         
     path, file = name.rsplit('/', 1)
     order = f"{path}/OrderFiles/{file.rsplit('.', 1)[0]}_varstoelim.txt"
 
-    arg = {"-b": name, "-v": order, "-c": c, "-r": r, "-d": d, "-t": arguments.timeout, "-u": u, "-s": s, "--unateTimeout": arguments.timeout//2}
+    arg = {"-b": name, "-v": order, "-c": c, "-r": r, "-d": d, "-t": arguments.timeout, "-u": u, "-s": s, "-o": dyn, "--unateTimeout": arguments.timeout}
     runs.append((arg, arguments.analyse, arguments.analysisdir))
 
 pool = Pool(processes=(os.cpu_count()*3)//4) # 2 cores free, should be fine
@@ -141,6 +147,14 @@ for row in res:
             f6.write(bname+"\n")
     else:
         f7.write(row[0]+"\n")
+
+    f.flush()
+    f2.flush()
+    f3.flush()
+    f4.flush()
+    f5.flush()
+    f6.flush()
+    f7.flush()
 
 f.close()
 f2.close()
