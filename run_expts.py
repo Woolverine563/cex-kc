@@ -1,7 +1,7 @@
-import argparse
+import argparse, json
 from subprocess import run, check_output, STDOUT
 from multiprocessing import Pool
-from csv import writer
+from csv import writer, DictReader
 from itertools import product
 from hashlib import md5
 from more_itertools import collapse
@@ -81,8 +81,10 @@ f7 = open(f'{arguments.outdir}/error', 'w')
 
 wr = writer(f)
 
+fields = ["Benchmark", "Initial size", "Final size", "Initial unates", "Final unates", "Number of iterations", "Number of cex", "Outputs fixed", "Total outputs", "Time taken", "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime", "compressTime", "rectifyCnfTime", "rectifyUnsatCoreTime"]
+
 # wr.writerow(["Benchmark", "Input NNF size", "Time", "SDD size"])
-wr.writerow(["Benchmark", "Initial size", "Final size", "Initial unates", "Final unates", "Number of iterations", "Number of cex", "Outputs fixed", "Total outputs", "Time taken", "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime", "compressTime", "rectifyCnfTime", "rectifyUnsatCoreTime"])
+wr.writerow(fields)
         
 if (not arguments.nocompile):
     os.system("make clean")
@@ -112,10 +114,11 @@ with open(arguments.file, 'r') as f:
         benchmarks.append(b_name)
 
 runs = []
+json_res = []
 
 v = list(product(rectify, depth)) # + [("1", "0")]
 
-for name, c, (r, d), u, s in product(benchmarks, conflict, v, unate, shannon, dynamic):
+for name, c, (r, d), u, s, dyn in product(benchmarks, conflict, v, unate, shannon, dynamic):
         
     path, file = name.rsplit('/', 1)
     order = f"{path}/OrderFiles/{file.rsplit('.', 1)[0]}_varstoelim.txt"
@@ -148,13 +151,8 @@ for row in res:
     else:
         f7.write(row[0]+"\n")
 
-    f.flush()
-    f2.flush()
-    f3.flush()
-    f4.flush()
-    f5.flush()
-    f6.flush()
-    f7.flush()
+    json_res.append(dict(zip(fields, row)))
+    
 
 f.close()
 f2.close()
@@ -163,3 +161,6 @@ f4.close()
 f5.close()
 f6.close()
 f7.close()
+
+with open(f'{arguments.outdir}/results.json','w') as file:
+    json.dump(json_res, file)

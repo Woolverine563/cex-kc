@@ -52,12 +52,12 @@ void parseOptions(int argc, char *argv[])
 		exit(0);
 	}
 
-	options.unateTimeout = min(options.unateTimeout, options.timeout/2);
+	options.unateTimeout = min(options.unateTimeout, options.timeout / 2);
 
 	// optimization to compute conflict cnf, disabling things for now!
 	// options.unate = false;
 	// options.useShannon = false;
-	options.dynamicOrdering = false;
+	// options.dynamicOrdering = false;
 	options.conflictCheck = 2; // only allow 1 or 2 for now!
 }
 
@@ -3378,5 +3378,8 @@ void calcLeastOccurrenceSAig(Aig_Man_t *SAig, int minIdx)
 	auto it = min_element(ranks.begin(), ranks.end());
 	assert(it != ranks.end());
 
+	// update all relevant maps
+
 	swap(varsYS[minIdx + it - ranks.begin()], varsYS[minIdx]);
+	swap(varsCNF[numX + minIdx + it - ranks.begin()], varsCNF[numX + minIdx]);
 }

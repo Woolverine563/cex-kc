@@ -175,6 +175,7 @@ int main(int argc, char **argv)
 						})
 
 					alreadyFalse = !addCnfToSolver(conflictSolver, conflict_cnf);
+					// new mappings, so no worries about dynamic ordering!
 					for (int i = 0; i < numX; i++)
 					{
 						varsCNF[i] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))];
@@ -208,6 +209,11 @@ int main(int argc, char **argv)
 						break;
 					}
 
+					if (options.dynamicOrdering)
+					{
+						calcLeastOccurrenceSAig(SAig, pi.idx);
+					}
+
 					sat_solver_restart(conflictSolver);
 
 					TIMED(
@@ -229,11 +235,6 @@ int main(int argc, char **argv)
 						varsCNF[i + numX] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))];
 					}
 					Cnf_DataFree(conflict_cnf);
-
-					if (options.dynamicOrdering)
-					{
-						calcLeastOccurrenceSAig(SAig, pi.idx);
-					}
 
 					// if (options.unate) {
 					// 	int cnt = checkUnate(SAig, unates);
