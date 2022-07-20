@@ -3381,5 +3381,6 @@ void calcLeastOccurrenceSAig(Aig_Man_t *SAig, int minIdx)
 	// update all relevant maps
 
 	swap(varsYS[minIdx + it - ranks.begin()], varsYS[minIdx]);
+	swap(varsYF[minIdx + it - ranks.begin()], varsYF[minIdx]);
 	swap(varsCNF[numX + minIdx + it - ranks.begin()], varsCNF[numX + minIdx]);
 }

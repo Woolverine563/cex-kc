@@ -35,7 +35,8 @@ def run_code(kwargs: dict, analyse: bool, analysisdir: str):
         oup = check_output(args, stderr=STDOUT)
         hash = md5(' '.join(args).encode()).hexdigest()
 
-        print(oup.decode())
+        with open(f'{arguments.outdir}/output-{hash}.txt','wb') as _:
+            _.write(oup)
 
         if (analyse):
             with open(f'{analysisdir}/analysis-{hash}.txt','w') as _:
@@ -61,11 +62,13 @@ def run_code(kwargs: dict, analyse: bool, analysisdir: str):
 
 parser = argparse.ArgumentParser()
 
+commit = check_output(["git","rev-parse","--short=6","HEAD"]).strip().decode()
+
 parser.add_argument("-timeout", type=int, default=3600)
 parser.add_argument("-analyse", action='store_true')
 parser.add_argument("file", type=str)
-parser.add_argument("-outdir", type=str, default='results')
-parser.add_argument("-analysisdir", type=str, default='analysis')
+parser.add_argument("-outdir", type=str, default=f'{commit}/results')
+parser.add_argument("-analysisdir", type=str, default=f'{commit}/analysis')
 parser.add_argument("-nocompile", action='store_true')
 arguments = parser.parse_args()
 
@@ -103,7 +106,7 @@ rectify = [3]
 conflict = [2]
 unate = [True, False]
 shannon = [False]
-dynamic = [False]
+dynamic = [False, True]
 benchmarks = []
 
 with open(arguments.file, 'r') as f:
