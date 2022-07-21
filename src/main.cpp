@@ -26,6 +26,7 @@ Cnf_Dat_t *FCnf = NULL;
 chrono_steady_time helper_time_measure_start;
 
 double repairTime, rectifyCnfTime, rectifyUnsatCoreTime, conflictCnfTime, satSolvingTime, unateTime, compressTime;
+double overallCnfTime;
 
 int it = 0;
 int init_unates = 0;
@@ -89,7 +90,7 @@ int main(int argc, char **argv)
 	}
 
 	FAig = PositiveToNormalWithNeg(SAig);
-	FCnf = Cnf_Derive(FAig, 0);
+	FCnf = Cnf_Derive_Wrapper(FAig, 0);
 	Aig_ManStop(FAig);
 
 	TIMED(
@@ -160,7 +161,7 @@ int main(int argc, char **argv)
 				if (cnt > 0)
 				{
 					FAig = PositiveToNormalWithNeg(SAig);
-					FCnf = Cnf_Derive(FAig, 0);
+					FCnf = Cnf_Derive_Wrapper(FAig, 0);
 					Aig_ManStop(FAig);
 
 					sat_solver_restart(conflictSolver);
@@ -244,7 +245,7 @@ int main(int argc, char **argv)
 
 					// 	if (cnt > 0) {
 					// 		FAig = PositiveToNormalWithNeg(SAig);
-					// 		FCnf = Cnf_Derive(FAig, 0);
+					// 		FCnf = Cnf_Derive_Wrapper(FAig, 0);
 					// 		Aig_ManStop(FAig);
 					// 	}
 					// }
@@ -261,9 +262,9 @@ int main(int argc, char **argv)
 					i++;
 					assert(ans != l_Undef);
 
-					#ifdef DEBUG
-						assert(isConflict(SAig, pi.idx));
-					#endif
+#ifdef DEBUG
+					assert(isConflict(SAig, pi.idx));
+#endif
 
 					if (options.useShannon && (Aig_ManObjNum(SAig) >= int(1.75 * begSize)))
 					{
@@ -322,7 +323,7 @@ int main(int argc, char **argv)
 	cout << "Took " << it << " iterations of algorithm : " << i << " number of counterexamples, " << repaired << " outputs repaired out of non-unate " << numY - tot_unates << " outputs" << endl;
 
 	cout << double(clock() - start) / CLOCKS_PER_SEC << " seconds" << endl;
-	cout << repairTime << " " << conflictCnfTime << " " << satSolvingTime << " " << unateTime << " " << compressTime << " " << rectifyCnfTime << " " << rectifyUnsatCoreTime << endl;
+	cout << repairTime << " " << conflictCnfTime << " " << satSolvingTime << " " << unateTime << " " << compressTime << " " << rectifyCnfTime << " " << rectifyUnsatCoreTime << " " << overallCnfTime << endl;
 
 	// Aig_ManDumpVerilog(SAig, (char*) (options.outFName).c_str());
 	Aig_ManStop(SAig);

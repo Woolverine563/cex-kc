@@ -7,23 +7,11 @@ from hashlib import md5
 from more_itertools import collapse
 import os
 
-def run_code(kwargs: dict, analyse: bool, analysisdir: str):
+def run_code(boolargs: dict, kwargs: dict, analyse: bool, analysisdir: str):
     args = ["bin/main"]
 
-    if kwargs.pop('-u', False):
-        args.append("-u")
-    else:
-        args.append("")
-
-    if kwargs.pop('-s', False):
-        args.append("-s")
-    else:
-        args.append("")
-
-    if kwargs.pop('-o', False):
-        args.append("-o")
-    else:
-        args.append("")
+    for (k,v) in boolargs.items():
+        args.append("" if not v else k)
 
     for k,v in kwargs.items():
         args.append(k)
@@ -84,7 +72,7 @@ f7 = open(f'{arguments.outdir}/error', 'w')
 
 wr = writer(f)
 
-fields = ["Benchmark", "Initial size", "Final size", "Initial unates", "Final unates", "Number of iterations", "Number of cex", "Outputs fixed", "Total outputs", "Time taken", "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime", "compressTime", "rectifyCnfTime", "rectifyUnsatCoreTime"]
+fields = ["Benchmark", "Initial size", "Final size", "Initial unates", "Final unates", "Number of iterations", "Number of cex", "Outputs fixed", "Total outputs", "Time taken", "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime", "compressTime", "rectifyCnfTime", "rectifyUnsatCoreTime", "overallCnfTime"]
 
 # wr.writerow(["Benchmark", "Input NNF size", "Time", "SDD size"])
 wr.writerow(fields)
@@ -107,6 +95,8 @@ conflict = [2]
 unate = [True, False]
 shannon = [False]
 dynamic = [False, True]
+fastcnf = [False, True]
+
 benchmarks = []
 
 with open(arguments.file, 'r') as f:
@@ -121,13 +111,14 @@ json_res = []
 
 v = list(product(rectify, depth)) # + [("1", "0")]
 
-for name, c, (r, d), u, s, dyn in product(benchmarks, conflict, v, unate, shannon, dynamic):
+for name, c, (r, d), u, s, dyn, fc in product(benchmarks, conflict, v, unate, shannon, dynamic, fastcnf):
         
     path, file = name.rsplit('/', 1)
     order = f"{path}/OrderFiles/{file.rsplit('.', 1)[0]}_varstoelim.txt"
 
-    arg = {"-b": name, "-v": order, "-c": c, "-r": r, "-d": d, "-t": arguments.timeout, "-u": u, "-s": s, "-o": dyn, "--unateTimeout": arguments.timeout}
-    runs.append((arg, arguments.analyse, arguments.analysisdir))
+    bool_arg = {"-u": u, "-s": s, "-o": dyn, "-f": fc}
+    arg = {"-b": name, "-v": order, "-c": c, "-r": r, "-d": d, "-t": arguments.timeout,  "--unateTimeout": arguments.timeout}
+    runs.append((bool_arg, arg, arguments.analyse, arguments.analysisdir))
 
 pool = Pool(processes=(os.cpu_count()*3)//4) # 2 cores free, should be fine
 
