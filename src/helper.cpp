@@ -1546,7 +1546,7 @@ int Aig_DagSizeWithConst(Aig_Obj_t *pObj)
 
 Cnf_Dat_t *Cnf_DeriveWithF(Aig_Man_t *Aig)
 {
-	auto Cnf1 = Cnf_Derive_Wrapper(Aig, 0);
+	auto Cnf1 = Cnf_Derive(Aig, 0);
 	unordered_map<int, int> cnfInvMap;
 
 	for (int i = 0; i < numX + numY + 1; i++)
@@ -1940,7 +1940,7 @@ Aig_Obj_t *removeTsVars(Aig_Man_t *SAig, list<pair<bool, vector<Lit>>> &coreCls,
 // take
 Aig_Obj_t *coreAndIntersect(Aig_Man_t *SAig, Aig_Man_t *Aig1)
 {
-	auto Cnf1 = Cnf_Derive_Wrapper(Aig1, 0);
+	auto Cnf1 = Cnf_Derive(Aig1, 0);
 
 	//
 
@@ -2099,7 +2099,7 @@ Aig_Obj_t *coreAndIntersect(Aig_Man_t *SAig, Aig_Man_t *Aig1)
 	}
 
 	Aig_ObjPatchFanin0(F, Aig_ManCo(F, 0), Aig_ComposeVec(F, pObj2, funcs, vars));
-	auto Cnf3 = Cnf_Derive_Wrapper(F, 0);
+	auto Cnf3 = Cnf_Derive(F, 0);
 	auto solver2 = sat_solver_new();
 	for (int c = 0; c < Cnf3->nClauses; c++)
 	{
