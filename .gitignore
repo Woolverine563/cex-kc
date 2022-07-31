@@ -13,4 +13,4 @@ data/
 data_zips/
 analysis.txt
 __pycache__/
-output
+*/output
