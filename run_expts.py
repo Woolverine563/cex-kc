@@ -4,31 +4,41 @@ from multiprocessing import Pool
 from csv import writer, DictReader
 from itertools import product
 from hashlib import md5
-from more_itertools import collapse
+from more_itertools import collapse, flatten
 import os
+from util import *
 
-def run_code(boolargs: dict, kwargs: dict, analyse: bool, analysisdir: str):
+def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
     args = ["bin/main"]
+    D = dict(zip(NON_BOOL_FIELDS, valargs))
 
-    for (k,v) in boolargs.items():
-        args.append("" if not v else k)
+    for (k,v) in zip(BOOL_FIELDS, boolargs):
+        val = "" if not v else k
+        args.append(val)
+        D[k] = val
 
-    for k,v in kwargs.items():
+    for k,v in zip(NON_BOOL_FIELDS, valargs):
         args.append(k)
         args.append(str(v))
 
-    bname = kwargs["-b"]
+    bname = D[BNAME_FIELD]
+    # default ordering is being used
+
+    hash = md5(' '.join(args).encode()).hexdigest()
+    D[HASH] = hash
 
     try:
-        oup = check_output(args, stderr=STDOUT)
-        hash = md5(' '.join(args).encode()).hexdigest()
+        oup = check_output(args, stderr=STDOUT, timeout=2*D[TIMEOUT_FIELD])
+        # Hard timeout of atmost twice
 
-        with open(f'{arguments.outdir}/output-{hash}.txt','wb') as _:
+        with open(f'{arguments.outdir}/outputs/output-{hash}.txt','wb') as _:
             _.write(oup)
 
         if (analyse):
+            gmon = f'{analysisdir}/{hash}.gmon.out'
+            run(["mv","gmon.out",gmon])
             with open(f'{analysisdir}/analysis-{hash}.txt','w') as _:
-                run(["gprof","bin/main","gmon.out"],stdout=_)
+                run(["gprof","bin/main",gmon],stdout=_)
 
         lines = oup.splitlines()[-6:]
 
@@ -42,17 +52,19 @@ def run_code(boolargs: dict, kwargs: dict, analyse: bool, analysisdir: str):
         numY = lines[3].split()[-2].decode()
         time = lines[4].strip().split()[0].decode()
 
-        return [bname, initial, final, init_u, tot_u, iters, counterexs, idx, numY, time] + [x.decode() for x in lines[5].strip().split()] + [hash] + args[1:]
+        return D, [initial, final, init_u, tot_u, iters, counterexs, idx, numY, time] + [x.decode() for x in lines[5].strip().split()], False
 
     except Exception as e:
+        # assumption that mostly no failures        
         print(e, args)
-        return [bname]
+        return D, [], True
 
 parser = argparse.ArgumentParser()
 
 commit = check_output(["git","rev-parse","--short=6","HEAD"]).strip().decode()
 
-parser.add_argument("-timeout", type=int, default=3600)
+parser.add_argument("-timeout", type=lambda s: [int(item) for item in s.split(',')], default=[3600])
+parser.add_argument("-unatetimeout", type=lambda s: [int(item) for item in s.split(',')], default=[])
 parser.add_argument("-analyse", action='store_true')
 parser.add_argument("file", type=str)
 parser.add_argument("-outdir", type=str, default=f'{commit}/results')
@@ -62,20 +74,21 @@ arguments = parser.parse_args()
 
 os.makedirs(arguments.outdir, exist_ok=True)
 
-f = open(f'{arguments.outdir}/runs.csv', 'w')
-f2 = open(f'{arguments.outdir}/allUnates', 'w')
-f3 = open(f'{arguments.outdir}/noConflictsWithUnates', 'w')
-f4 = open(f'{arguments.outdir}/noConflicts', 'w')
-f5 = open(f'{arguments.outdir}/noUnates', 'w')
-f6 = open(f'{arguments.outdir}/others', 'w')
-f7 = open(f'{arguments.outdir}/error', 'w')
+CSV = open(f'{arguments.outdir}/runs.csv', 'w')
 
-wr = writer(f)
+filedict = {
+ALLUNATES   : open(f'{arguments.outdir}/{ALLUNATES}', 'w'),
+NOCONFU     : open(f'{arguments.outdir}/{NOCONFU}', 'w'),
+NOCONF      : open(f'{arguments.outdir}/{NOCONF}', 'w'),
+NOU         : open(f'{arguments.outdir}/{NOU}', 'w'),
+OTHER       : open(f'{arguments.outdir}/{OTHER}', 'w'),
+ERROR       : open(f'{arguments.outdir}/{ERROR}', 'w'),
+}
 
-fields = ["Benchmark", "Initial size", "Final size", "Initial unates", "Final unates", "Number of iterations", "Number of cex", "Outputs fixed", "Total outputs", "Time taken", "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime", "compressTime", "rectifyCnfTime", "rectifyUnsatCoreTime", "overallCnfTime"]
+wr = writer(CSV)
 
 # wr.writerow(["Benchmark", "Input NNF size", "Time", "SDD size"])
-wr.writerow(fields)
+wr.writerow(HEADER)
         
 if (not arguments.nocompile):
     os.system("make clean")
@@ -96,11 +109,12 @@ unate = [True, False]
 shannon = [False]
 dynamic = [False, True]
 fastcnf = [False, True]
-
+timeout = arguments.timeout
+unatetimeout = arguments.timeout if (len(arguments.unatetimeout) == 0) else arguments.unatetimeout
 benchmarks = []
 
-with open(arguments.file, 'r') as f:
-    l = f.readlines()
+with open(arguments.file, 'r') as runs:
+    l = runs.readlines()
     for i in range(len(l)):
         b_name = l[i].strip()
 
@@ -111,50 +125,37 @@ json_res = []
 
 v = list(product(rectify, depth)) # + [("1", "0")]
 
-for name, c, (r, d), u, s, dyn, fc in product(benchmarks, conflict, v, unate, shannon, dynamic, fastcnf):
+for name, c, (r, d), u, s, dyn, fc, t, ut in product(benchmarks, conflict, v, unate, shannon, dynamic, fastcnf, timeout, unatetimeout):
         
     path, file = name.rsplit('/', 1)
     order = f"{path}/OrderFiles/{file.rsplit('.', 1)[0]}_varstoelim.txt"
 
-    bool_arg = {"-u": u, "-s": s, "-o": dyn, "-f": fc}
-    arg = {"-b": name, "-v": order, "-c": c, "-r": r, "-d": d, "-t": arguments.timeout,  "--unateTimeout": arguments.timeout}
+    bool_arg = [u,s,dyn,fc]
+    arg = [name, order, c, r, d, t, ut]
     runs.append((bool_arg, arg, arguments.analyse, arguments.analysisdir))
 
-pool = Pool(processes=(os.cpu_count()*3)//4) # 2 cores free, should be fine
+pool = Pool() # processes=(os.cpu_count()*3)//4) # 2 cores free, should be fine
 
 pool = pool.starmap_async(run_code, runs)
 pool.wait()
 res = pool.get()
 
-for row in res:
-    if (len(row) > 1): # no error
-        bname = row[0]
-        wr.writerow(row)
+for (D, outputs, error) in res:
+    row = [D[k] for k in FIELDS] + outputs
+    bname, hash = D[BNAME_FIELD], D[HASH]
+    d = analysis(row, error)
 
-        if (int(row[8]) == 0):
-            f2.write(bname+"\n")
-        elif (int(row[7]) == int(row[8])) and (int(row[6]) == 0):
-            if ("-u" in list(collapse(row))):
-                f3.write(bname+"\n")
-            else:
-                f4.write(bname+"\n")
-        elif (int(row[4]) == 0) and ("-u" in row):
-            f5.write(bname+"\n")
-        else:
-            f6.write(bname+"\n")
-    else:
-        f7.write(row[0]+"\n")
+    for (k, v) in d.items():
+        assert v
+        filedict[k].write(f'{bname},{hash}\n')
 
-    json_res.append(dict(zip(fields, row)))
+    json_res.append(dict(zip(HEADER, row)))
     
 
-f.close()
-f2.close()
-f3.close()
-f4.close()
-f5.close()
-f6.close()
-f7.close()
+CSV.close()
+
+for v in filedict.values():
+    v.close()
 
 with open(f'{arguments.outdir}/results.json','w') as file:
     json.dump(json_res, file)
