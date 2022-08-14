@@ -1,10 +1,9 @@
 import argparse, json
 from subprocess import run, check_output, STDOUT
 from multiprocessing import Pool
-from csv import writer, DictReader
+from csv import writer
 from itertools import product
 from hashlib import md5
-from more_itertools import collapse, flatten
 import os
 from util import *
 
@@ -52,12 +51,13 @@ def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
         numY = lines[3].split()[-2].decode()
         time = lines[4].strip().split()[0].decode()
 
-        return D, [initial, final, init_u, tot_u, iters, counterexs, idx, numY, time] + [x.decode() for x in lines[5].strip().split()], False
+        return D, [initial, final, init_u, tot_u, iters, counterexs, idx, numY, time] + [x.decode() for x in lines[5].strip().split()] + [""], False
+        # empty error field
 
     except Exception as e:
         # assumption that mostly no failures        
         print(e, args)
-        return D, [], True
+        return D, [""] * (len(RESULTS)-1) + [str(e)], True
 
 parser = argparse.ArgumentParser()
 
@@ -87,7 +87,6 @@ ERROR       : open(f'{arguments.outdir}/{ERROR}', 'w'),
 
 wr = writer(CSV)
 
-# wr.writerow(["Benchmark", "Input NNF size", "Time", "SDD size"])
 wr.writerow(HEADER)
         
 if (not arguments.nocompile):
@@ -141,17 +140,15 @@ pool.wait()
 res = pool.get()
 
 for (D, outputs, error) in res:
-    row = [D[k] for k in FIELDS] + outputs
-    bname, hash = D[BNAME_FIELD], D[HASH]
-    d = analysis(row, error)
+    row, bname, hash, d, d_all = process(D, outputs, error)
+    wr.writerow(row)
 
     for (k, v) in d.items():
         assert v
         filedict[k].write(f'{bname},{hash}\n')
 
-    json_res.append(dict(zip(HEADER, row)))
+    json_res.append(d_all)
     
-
 CSV.close()
 
 for v in filedict.values():
