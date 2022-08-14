@@ -35,7 +35,7 @@ def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
             _.write(oup)
 
         if (analyse):
-            os.makedirs(f'{analysisdir}')
+            os.makedirs(f'{analysisdir}', exist_ok=True)
             gmon = f'{analysisdir}/{hash}.gmon.out'
             run(["mv","gmon.out",gmon])
             with open(f'{analysisdir}/analysis-{hash}.txt','w') as _:
