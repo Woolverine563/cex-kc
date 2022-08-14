@@ -30,10 +30,12 @@ def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
         oup = check_output(args, stderr=STDOUT, timeout=2*D[TIMEOUT_FIELD])
         # Hard timeout of atmost twice
 
+        os.makedirs(f'{arguments.outdir}/outputs', exist_ok=True)
         with open(f'{arguments.outdir}/outputs/output-{hash}.txt','wb') as _:
             _.write(oup)
 
         if (analyse):
+            os.makedirs(f'{analysisdir}')
             gmon = f'{analysisdir}/{hash}.gmon.out'
             run(["mv","gmon.out",gmon])
             with open(f'{analysisdir}/analysis-{hash}.txt','w') as _:

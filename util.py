@@ -6,7 +6,8 @@ BNAME_FIELD = "-b"
 VORDER_FIELD = "-v"
 TIMEOUT_FIELD = "-t"
 UNATE_FIELD = "-u"
-BOOL_FIELDS = [UNATE_FIELD,"-s","-o","-f"]
+FASTCNF_FIELD = "-f"
+BOOL_FIELDS = [UNATE_FIELD,"-s","-o",FASTCNF_FIELD]
 VAL_FIELDS = [ "-c", "-r", "-d", TIMEOUT_FIELD, "--unateTimeout"]
 NON_BOOL_FIELDS = [BNAME_FIELD, VORDER_FIELD] + VAL_FIELDS
 CONFIG_FIELDS = BOOL_FIELDS + VAL_FIELDS
@@ -18,8 +19,9 @@ FIN_UN = "Final unates"
 TOT_OUTPUTS = "Total outputs without unate"
 FIXED_OUTPUTS = "Outputs fixed"
 NUM_CEX = "Number of cex"
+TOT_TIME = "Time taken"
 
-RESULTS = ["Initial size", "Final size", INIT_UN, FIN_UN, "Number of iterations", NUM_CEX, FIXED_OUTPUTS, TOT_OUTPUTS, "Time taken", "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime", "compressTime", "rectifyCnfTime", "rectifyUnsatCoreTime", "overallCnfTime", "ERROR"]
+RESULTS = ["Initial size", "Final size", INIT_UN, FIN_UN, "Number of iterations", NUM_CEX, FIXED_OUTPUTS, TOT_OUTPUTS, TOT_TIME, "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime", "compressTime", "rectifyCnfTime", "rectifyUnsatCoreTime", "overallCnfTime", "ERROR"]
 
 # ["Benchmark", "VarOrder", "unate?","shannon?", "dynamic?", "fastCNF?"]
 HEADER = FIELDS + RESULTS
