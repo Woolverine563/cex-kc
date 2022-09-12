@@ -36,7 +36,7 @@ def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
 
         if (analyse):
             os.makedirs(f'{analysisdir}', exist_ok=True)
-            gmon = f'{analysisdir}/{hash}.gmon.out'
+            gmon = f'{analysisdir}/gmon.{hash}.out'
             run(["mv","gmon.out",gmon])
             with open(f'{analysisdir}/analysis-{hash}.txt','w') as _:
                 run(["gprof","bin/main",gmon],stdout=_)
@@ -106,10 +106,10 @@ if arguments.analyse:
 depth = [20]
 rectify = [3]
 conflict = [2]
-unate = [True, False]
+unate = [True]
 shannon = [False]
 dynamic = [False, True]
-fastcnf = [False, True]
+fastcnf = [False]
 timeout = arguments.timeout
 unatetimeout = arguments.timeout if (len(arguments.unatetimeout) == 0) else arguments.unatetimeout
 benchmarks = []

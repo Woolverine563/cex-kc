@@ -45,9 +45,9 @@ def process(D: dict, outputs: list, error: bool) :
     def isAllU():
         return int(row[HEADER.index(TOT_OUTPUTS)]) == 0
     def isNoConfU():
-        return (UNATE_FIELD in row) and (int(row[HEADER.index(NUM_CEX)] == 0)) and isSolved()
+        return (UNATE_FIELD in row) and (int(row[HEADER.index(NUM_CEX)]) == 0) and isSolved()
     def isNoConf():
-        return (UNATE_FIELD not in row) and (int(row[HEADER.index(NUM_CEX)] == 0)) and isSolved()
+        return (UNATE_FIELD not in row) and (int(row[HEADER.index(NUM_CEX)]) == 0) and isSolved()
     def isNoU():
         # fully solved but had no unates
         return (UNATE_FIELD in row) and (int(row[HEADER.index(FIN_UN)]) == 0) and isSolved()
