@@ -33,6 +33,8 @@ NOU = "noUnates"
 OTHER = "others"
 ERROR = "error"
 
+FILENAMES = [ALLUNATES, NOCONFU, NOCONF, NOU, OTHER, ERROR]
+
 IS_SOLVED = "isSolved"
 
 # row maps directly to HEADER
@@ -43,7 +45,7 @@ def process(D: dict, outputs: list, error: bool) :
     def isSolved():
         return not error and (int(row[HEADER.index(FIXED_OUTPUTS)]) == int(row[HEADER.index(TOT_OUTPUTS)]))
     def isAllU():
-        return int(row[HEADER.index(TOT_OUTPUTS)]) == 0
+        return int(row[HEADER.index(TOT_OUTPUTS)]) == 0 and isSolved()
     def isNoConfU():
         return (UNATE_FIELD in row) and (int(row[HEADER.index(NUM_CEX)]) == 0) and isSolved()
     def isNoConf():
@@ -64,7 +66,7 @@ def process(D: dict, outputs: list, error: bool) :
             d[NOCONF] = True
         if isNoU():
             d[NOU] = True
-        if (len(d) == 0):
+        if (len(d) == 0) and isSolved():
             d[OTHER] = True
 
     for k in [BNAME_FIELD, VORDER_FIELD, HASH]:

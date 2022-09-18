@@ -1,6 +1,8 @@
 from datetime import date
 import json, sys
 import copy
+
+from more_itertools import difference
 from util import *
 import itertools
 import matplotlib.pyplot as plt
@@ -97,17 +99,12 @@ def genericAnalysis(results):
         r1, r2 = r.extract(filterFields)
         data.setdefault(r1, []).append(r2)
 
-    for k, v in data.items():
-        cnt = len(list(filter(lambda x : x.isSolved, v)))
-        print(f"{k} -> {cnt} fully solved")
-
     # total benchmarks solved
     total = set()
     for k, v in data.items():
         total.update(set([(r.benchmark, r.orderfile) for r in filter(lambda x : x.isSolved, v)]))
 
-    print(f"Total benchmarks solved : {len(total)}")
-    print()
+    print(f"Total benchmarks solved across any config: {len(total)} out of {max([len(v) for v in data.values()])}")
 
     err_results = list(filter(lambda x : x.results["ERROR"] is not '', itertools.chain(*data.values())))
 
@@ -120,10 +117,14 @@ def genericAnalysis(results):
     print(f"Hard Timeouts : {len(timeouts)} timeouts across {len(set(timeouts))} unique benchmarks out of above")
     print(f"Other errors : {other_errs}")
     print()
-
-    par2_dict = {}
+    print()
 
     for k, v in data.items():
+        print(f"{k} ->")
+
+        cnt = len(list(filter(lambda x : x.isSolved, v)))
+        print(f"Fully Solved : {cnt}")
+
         par2 = 0
 
         for s in v:
@@ -133,19 +134,27 @@ def genericAnalysis(results):
                 par2 += k.__dict__[TIMEOUT_FIELD] * 2
 
         par2 /= len(v)
-        par2_dict[k] = par2
+        print(f"PAR2 Score : {par2:.2f}")
 
-    print(f"PAR2 scores : {par2_dict}")
-    print()
-
-    for k, v in data.items():
         d = {}
 
         for r in v:
             for f, _ in r.files.items():
-                d[f] = d.get(f, 0) + 1
+                d[f] = d.get(f, set())
+                d[f].add(r)
         
-        print(f"{k} -> {sorted(d.items())} counts, total = {sum(d.values())}")
+        assert len(set(d.keys()).difference(set(FILENAMES))) == 0
+
+        print("[", end=' ')
+        for k1, v1 in sorted(d.items()):
+            print(f"{k1} -> {len(v1)},", end=' ')
+        # ALLUNATES subset of NOCONFU
+        # NOU can be in NOCONFU
+        print(f"{NOCONFU} - {ALLUNATES} - {NOU} -> {len(d[NOCONFU].difference(d[ALLUNATES]).difference(d[NOU]))},", end=' ')
+        print(f"{NOU} - {NOCONFU} -> {len(d[NOU].difference(d[NOCONFU]))},", end=' ')
+        print("]")
+        print()
+
 
 # with open(sys.argv)
 with open(sys.argv[1], 'r') as f:
