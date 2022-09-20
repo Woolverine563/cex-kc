@@ -2775,7 +2775,7 @@ void repair(Aig_Man_t *SAig)
 			}
 		}
 
-		// TODO : better increment than k++ ....
+		// TODO : better increment than k++? ....
 
 		if (k == numY)
 		{
@@ -2805,6 +2805,13 @@ void repair(Aig_Man_t *SAig)
 		assert(Aig_IsPositive(SAig));
 		assert(isConflict(SAig, k));
 #endif
+		printAig(SAig);
+
+		auto nodes = getNodesToRectify(SAig, k);
+
+		for (auto n : nodes) {
+			Aig_ObjPrint(SAig, n);
+		}
 
 		Aig_Obj_t *patch = NULL;
 
@@ -3486,4 +3493,78 @@ Cnf_Dat_t *Cnf_Derive_Wrapper(Aig_Man_t *p, int nOutputs)
 			ans = Cnf_Derive(p, nOutputs);
 		})
 	return ans;
+}
+
+vector<Aig_Obj_t*> getNodesToRectify(Aig_Man_t* SAig, int k) {
+	vector<Aig_Obj_t*> nodes;
+
+	Aig_ManConst1(SAig)->pData = Aig_ManConst1(SAig);
+	for (int i = 0; i < numX; i++) {
+		Aig_ManCi(SAig, varsXS[i])->pData = Aig_NotCond(Aig_ManConst0(SAig), pi.X[i]);
+		Aig_ManCi(SAig, varsXS[i] + numOrigInputs)->pData = Aig_ManConst1(SAig);
+	}
+
+	for (int i = 0; i < numY; i++) {
+		if (i < k) {
+			Aig_ManCi(SAig, varsYS[i])->pData = Aig_ManConst1(SAig);
+			Aig_ManCi(SAig, varsYS[i] + numOrigInputs)->pData = Aig_ManConst1(SAig);
+		}
+		else if (i == k) {
+			Aig_ManCi(SAig, varsYS[i])->pData = Aig_ManCi(SAig, varsYS[i]);
+			Aig_ManCi(SAig, varsYS[i] + numOrigInputs)->pData = Aig_ManCi(SAig, varsYS[i] + numOrigInputs);
+		}
+		else {
+			Aig_ManCi(SAig, varsYS[i])->pData = Aig_NotCond(Aig_ManConst0(SAig), pi.Y[i]);
+			Aig_ManCi(SAig, varsYS[i] + numOrigInputs)->pData = Aig_NotCond(Aig_ManConst1(SAig), pi.Y[i]);
+		}
+	}
+
+	Aig_Obj_t* pObj;
+	int i;
+	Aig_ManForEachNode(SAig, pObj, i) {
+		pObj->pData = Aig_And(SAig, Aig_ObjChild0Copy(pObj), Aig_ObjChild1Copy(pObj));
+	}
+
+	// only y_k and ybar_k remain
+
+	// 01, 10, 11
+
+	unordered_map<int, tuple<int, int, int>> evals;
+	evals[Aig_ManConst0(SAig)->Id] = {0,0,0};
+	evals[Aig_ManConst1(SAig)->Id] = {1,1,1};
+	evals[Aig_ManCi(SAig, varsYS[k])->Id] = {0,1,1};
+	evals[Aig_ManCi(SAig, varsYS[k] + numOrigInputs)->Id] = {1,0,1};
+
+	Aig_ManForEachCi(SAig, pObj, i) {
+		evals[pObj->Id] = evals[((Aig_Obj_t*) pObj->pData)->Id];
+	}
+
+	Aig_ManForEachNode(SAig, pObj, i) {
+		auto l = evals[Aig_ObjFanin0(pObj)->Id];
+		auto r = evals[Aig_ObjFanin1(pObj)->Id];
+
+		if (Aig_IsComplement(Aig_ObjChild0(pObj))) {l = {1-get<0>(l), 1-get<1>(l), 1-get<2>(l)};}
+		if (Aig_IsComplement(Aig_ObjChild1(pObj))) {r = {1-get<0>(r), 1-get<1>(r), 1-get<2>(r)};}
+
+		evals[pObj->Id] = {get<0>(l)*get<0>(r), get<1>(l)*get<1>(r), get<2>(l)*get<2>(r)};
+	}
+
+	Aig_ManForEachObj(SAig, pObj, i) {
+		if (Aig_ObjIsConst1(pObj) || Aig_ObjIsCi(pObj) || Aig_ObjIsNode(pObj)) {
+			pObj->iData = ( evals[pObj->Id] == make_tuple(0,0,1) );
+		}
+	}
+
+	Aig_ManCleanup(SAig);
+
+	auto x = evals[Aig_Regular(Aig_ManCo(SAig, 0)->pFanin0)->Id];
+
+	cout << get<0>(x) << get<1>(x) << get<2>(x) << endl;
+
+	auto root = Aig_ManCo(SAig, 0)->pFanin0;
+	
+	assert(Aig_IsComplement(root) ? 1 - Aig_Regular(root)->iData : Aig_Regular(root)->iData);
+
+	nodes.push_back(Aig_ManCo(SAig, 0)->pFanin0);
+	return nodes;
 }

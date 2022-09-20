@@ -27,7 +27,7 @@ def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
     D[HASH] = hash
 
     try:
-        oup = check_output(args, stderr=STDOUT, timeout=2*D[TIMEOUT_FIELD])
+        oup = check_output(args, stderr=STDOUT, timeout=D[TIMEOUT_FIELD] + 60)
         # Hard timeout of atmost twice
 
         os.makedirs(f'{arguments.outdir}/outputs', exist_ok=True)

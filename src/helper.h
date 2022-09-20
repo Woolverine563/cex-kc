@@ -269,6 +269,8 @@ Cnf_Dat_t *getConflictFormulaCNF2(Aig_Man_t *SAig, int idx);
 lbool solveAndModel(Aig_Man_t *SAig);
 void calcLeastOccurrenceSAig(Aig_Man_t *SAig, int minIdx);
 Cnf_Dat_t *Cnf_Derive_Wrapper(Aig_Man_t *p, int nOutputs);
+vector<Aig_Obj_t*> getNodesToRectify(Aig_Man_t* SAig, int k);
+
 
 template <class T>
 void print(T v)
