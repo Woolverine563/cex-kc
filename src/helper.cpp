@@ -32,7 +32,22 @@ std::ostream &operator<<(std::ostream &os, const ConflictCounterEx &cce)
 void parseOptions(int argc, char *argv[])
 {
 	optParser.positional_help("");
-	optParser.add_options()("b, benchmark", "Specify the benchmark (required)", cxxopts::value<string>(options.benchmark), "FILE")("v, varsOrder", "Specify the variable ordering", cxxopts::value<string>(options.varsOrder), "FILE")("c, conflictCheck", "Specifies the conflict check method", cxxopts::value<int>(options.conflictCheck)->default_value("2"))("r, rectifyProc", "Specifies the rectification procedure employed", cxxopts::value<int>(options.rectifyProc)->default_value("3"))("d, depth", "Specifies the depth of the cut nodes", cxxopts::value<int>(options.depth)->default_value("10"))("t, timeOut", "Specifies the timeout used", cxxopts::value<int>(options.timeout)->default_value("3600"))("a, allIndices", "Specifies whether all indices are fixed for a counter-example at once", cxxopts::value<bool>(options.fixAllIndices))("u, unate", "Specifies whether to use unates or not", cxxopts::value<bool>(options.unate))("s, shannon", "Use shannon expansion", cxxopts::value<bool>(options.useShannon))("unateTimeout", "Timeout for fixed-point unate computation", cxxopts::value<int>(options.unateTimeout)->default_value("600"))("q, allowUnivQuantify", "Allows universal quantification in cut choices", cxxopts::value<bool>(options.allowUnivQuantify))("o, dynamicOrdering", "Use dynamic ordering", cxxopts::value<bool>(options.dynamicOrdering))("f, useFastCnf", "Use Fast CNF", cxxopts::value<bool>(options.useFastCnf))("h, help", "Print this help");
+	optParser.add_options()
+	("b, benchmark", "Specify the benchmark (required)", cxxopts::value<string>(options.benchmark), "FILE")
+	("v, varsOrder", "Specify the variable ordering", cxxopts::value<string>(options.varsOrder), "FILE")
+	("c, conflictCheck", "Specifies the conflict check method", cxxopts::value<int>(options.conflictCheck)->default_value("2"))
+	("r, rectifyProc", "Specifies the rectification procedure employed", cxxopts::value<int>(options.rectifyProc)->default_value("3"))
+	("d, depth", "Specifies the depth of the cut nodes", cxxopts::value<int>(options.depth)->default_value("10"))
+	("t, timeOut", "Specifies the timeout used", cxxopts::value<int>(options.timeout)->default_value("3600"))
+	("a, allIndices", "Specifies whether all indices are fixed for a counter-example at once", cxxopts::value<bool>(options.fixAllIndices))
+	("u, unate", "Specifies whether to use unates or not", cxxopts::value<bool>(options.unate))
+	("s, shannon", "Use shannon expansion", cxxopts::value<bool>(options.useShannon))
+	("unateTimeout", "Timeout for fixed-point unate computation", cxxopts::value<int>(options.unateTimeout)->default_value("600"))
+	("q, allowUnivQuantify", "Allows universal quantification in cut choices", cxxopts::value<bool>(options.allowUnivQuantify))
+	("o, dynamicOrdering", "Use dynamic ordering", cxxopts::value<bool>(options.dynamicOrdering))
+	("f, useFastCnf", "Use Fast CNF", cxxopts::value<bool>(options.useFastCnf))
+	("l, localRectify", "Use local rectification", cxxopts::value<bool>(options.localRectify))
+	("h, help", "Print this help");
 
 	// optParser.parse_positional(vector<string>({"benchmark", "varsOrder"}));
 	auto result = optParser.parse(argc, argv);
@@ -2621,10 +2636,13 @@ Aig_Obj_t *Rectify2(Aig_Man_t *SAig, int k, int depth, bool allowUnivQuantify)
 	return generalize;
 }
 
-Aig_Obj_t *Rectify3(Aig_Man_t *SAig, int k, int depth, bool allowUnivQuantify)
+Aig_Obj_t *Rectify3(Aig_Man_t *SAig, int k, Aig_Obj_t* pNode, int depth, bool allowUnivQuantify)
 {
 	Aig_Obj_t *pObj;
-	Aig_Man_t *F = Aig_ManDupSimpleDfs(SAig);
+	Aig_Man_t *F = Aig_ManStartFrom(SAig);
+
+	Aig_ObjCreateCo(F, Aig_Transfer(SAig, F, pNode, 2 * numOrigInputs));
+	assert(Aig_ManCheck(F));
 
 	vector<int> vars;
 	vector<Aig_Obj_t *> funcs;
@@ -2646,6 +2664,8 @@ Aig_Obj_t *Rectify3(Aig_Man_t *SAig, int k, int depth, bool allowUnivQuantify)
 	pObj = Aig_ComposeVec(F, Aig_ManCo(F, 0)->pFanin0, funcs, vars);
 	vector<Aig_Obj_t *> savedObjs = chooseCut(F, pObj, k, depth, false);
 
+	// chosen cut
+
 	vars.clear();
 	funcs.clear();
 
@@ -2660,8 +2680,9 @@ Aig_Obj_t *Rectify3(Aig_Man_t *SAig, int k, int depth, bool allowUnivQuantify)
 		funcs.push_back(Aig_NotCond(Aig_ManConst0(F), pi.Y[i]));
 	}
 
-	// wrong check, need to evaluate aig and semantic check if y_k and ybar_k
+	//need to evaluate aig and semantic check if y_k and ybar_k
 	Aig_ComposeVec(F, pObj, funcs, vars);
+	// evaluated Aig to obtain each node's value in y_k and ybar_k
 
 	pObj = Aig_ManConst1(F);
 
@@ -2674,7 +2695,8 @@ Aig_Obj_t *Rectify3(Aig_Man_t *SAig, int k, int depth, bool allowUnivQuantify)
 		pObj = Aig_And(F, pObj, Aig_Not(Aig_XOR(F, g, savedObjs[i])));
 		assert(Aig_ObjIsConst1(Aig_Regular(pVal)));
 
-		Aig_ObjCreateCo(F, Aig_NotCond(g, Aig_IsComplement(pVal)));
+		Aig_ObjCreateCo(F, Aig_NotCond(g, Aig_IsComplement(pVal))); 
+		// new nodes for each new variable
 	}
 
 	Aig_ObjPatchFanin0(F, Aig_ManCo(F, 0), pObj);
@@ -2708,7 +2730,8 @@ Aig_Obj_t *Rectify3(Aig_Man_t *SAig, int k, int depth, bool allowUnivQuantify)
 
 		auto pSatCnf = (Sto_Man_t *)sat_solver_store_release(solver);
 		auto proof = Intp_ManAlloc();
-		auto core = (Vec_Int_t *)Intp_ManUnsatCore(proof, pSatCnf, 0, 0);)
+		auto core = (Vec_Int_t *)Intp_ManUnsatCore(proof, pSatCnf, 0, 0);
+	)
 
 	sort(core->pArray, core->pArray + core->nSize);
 
@@ -2805,79 +2828,141 @@ void repair(Aig_Man_t *SAig)
 		assert(Aig_IsPositive(SAig));
 		assert(isConflict(SAig, k));
 #endif
-		printAig(SAig);
 
 		auto nodes = getNodesToRectify(SAig, k);
+		Aig_Obj_t *pNode, *pPar, *pChild;
 
-		for (auto n : nodes) {
-			Aig_ObjPrint(SAig, n);
-		}
+		//usually fixing just one node should do but we gotta fix 'em all
 
-		Aig_Obj_t *patch = NULL;
+		for (auto pTuple : nodes) {
+		// cout << nodes.size() << endl;
 
-		if (options.rectifyProc == 1)
-		{
-			patch = Rectify(SAig, k);
-		}
-		else if (options.rectifyProc == 2)
-		{
-			// rectify2 is buggy!
-			patch = Rectify2(SAig, k, options.depth, options.allowUnivQuantify);
-		}
-		else if (options.rectifyProc == 3)
-		{
-			patch = Rectify3(SAig, k, options.depth, options.allowUnivQuantify);
-		}
+			cout << endl;
+			Aig_ObjPrint(SAig, get<0>(pTuple));
+			cout << endl;
+			Aig_ObjPrint(SAig, get<1>(pTuple));
+			cout << endl;
+			Aig_ObjPrint(SAig, get<2>(pTuple));
+			cout << endl;
+			
+			tie(pNode, pPar, pChild) = pTuple;
+			
+			Aig_Obj_t *patch = NULL;
 
-		assert(patch != NULL);
-		auto AigNew = Aig_ManDupSimpleDfs(SAig);
-		Aig_Obj_t *pObj = Aig_Transfer(SAig, AigNew, patch, 2 * numOrigInputs);
-
-		vector<int> vars;
-		vector<Aig_Obj_t *> funcs;
-
-		for (int i = 0; i < numY; i++)
-		{
-			vars.push_back(varsYS[i] + numOrigInputs);
-			funcs.push_back(Aig_Not(Aig_ManCi(AigNew, varsYS[i])));
-		}
-
-		pObj = Aig_ComposeVec(AigNew, pObj, funcs, vars);
-		patchCo(AigNew, pObj);
-		assert(Aig_ManCheck(AigNew));
-
-		Cnf_Dat_t *Cnf = Cnf_Derive_Wrapper(AigNew, 0);
-		int maxVar = sat_solver_nvars(conflictSolver);
-		unordered_map<int, int> NewCNFToAig;
-
-		int i;
-		Aig_ManForEachCi(AigNew, pObj, i)
-		{
-			NewCNFToAig[Cnf->pVarNums[pObj->Id]] = pObj->Id;
-		}
-
-		for (int i = 0; i < Cnf->nClauses; i++)
-		{
-			for (lit *j = Cnf->pClauses[i]; j < Cnf->pClauses[i + 1]; j++)
+			if (options.rectifyProc == 1)
 			{
-				auto it = NewCNFToAig.find(Abc_Lit2Var(*j));
-				if (it == NewCNFToAig.end())
-				{
-					*j += 2 * maxVar;
-				}
-				else
-				{
-					*j = Abc_Var2Lit(AigToCNF[it->second], Abc_LitIsCompl(*j));
-				}
+				assert(false);
+				patch = Rectify(SAig, k);
 			}
+			else if (options.rectifyProc == 2)
+			{
+				assert(false);
+				// rectify2 is buggy!
+				patch = Rectify2(SAig, k, options.depth, options.allowUnivQuantify);
+			}
+			else if (options.rectifyProc == 3)
+			{
+				patch = Rectify3(SAig, k, pNode, options.depth, options.allowUnivQuantify);
+			}
+
+			assert(patch != NULL);
+
+			// CNF optimization turned off
+			// TODO : turn it on again
+
+			// auto AigNew = Aig_ManDupSimpleDfs(SAig);
+			// Aig_Obj_t *pObj = Aig_Transfer(SAig, AigNew, patch, 2 * numOrigInputs);
+
+			// vector<int> vars;
+			// vector<Aig_Obj_t *> funcs;
+
+			// for (int i = 0; i < numY; i++)
+			// {
+			// 	vars.push_back(varsYS[i] + numOrigInputs);
+			// 	funcs.push_back(Aig_Not(Aig_ManCi(AigNew, varsYS[i])));
+			// }
+
+			// pObj = Aig_ComposeVec(AigNew, pObj, funcs, vars);
+			// patchCo(AigNew, pObj);
+			// assert(Aig_ManCheck(AigNew));
+
+			// Cnf_Dat_t *Cnf = Cnf_Derive_Wrapper(AigNew, 0);
+			// int maxVar = sat_solver_nvars(conflictSolver);
+			// unordered_map<int, int> NewCNFToAig;
+
+			// int i;
+			// Aig_ManForEachCi(AigNew, pObj, i)
+			// {
+			// 	NewCNFToAig[Cnf->pVarNums[pObj->Id]] = pObj->Id;
+			// }
+
+			// for (int i = 0; i < Cnf->nClauses; i++)
+			// {
+			// 	for (lit *j = Cnf->pClauses[i]; j < Cnf->pClauses[i + 1]; j++)
+			// 	{
+			// 		auto it = NewCNFToAig.find(Abc_Lit2Var(*j));
+			// 		if (it == NewCNFToAig.end())
+			// 		{
+			// 			*j += 2 * maxVar;
+			// 		}
+			// 		else
+			// 		{
+			// 			*j = Abc_Var2Lit(AigToCNF[it->second], Abc_LitIsCompl(*j));
+			// 		}
+			// 	}
+			// }
+
+			// alreadyFalse |= !addCnfToSolver(conflictSolver, Cnf);
+			// Cnf_DataFree(Cnf);
+			// Aig_ManStop(AigNew);
+
+			// either pNode = pChild or pNode = Compl pChild
+			// pNode ^ patch is desired
+
+			auto pChild0 = pPar->pFanin0, pChild1 = pPar->pFanin1;
+
+			if (Aig_ObjFanin0(pPar) == pChild) {
+				pChild0 = Aig_NotCond(Aig_And(SAig, pNode, patch), Aig_ObjFaninC0(pPar) ^ Aig_IsComplement(pNode) ^ Aig_IsComplement(pChild));
+			}		
+			else if (Aig_ObjFanin1(pPar) == pChild) {
+				pChild1 = Aig_NotCond(Aig_And(SAig, pNode, patch), Aig_ObjFaninC1(pPar) ^ Aig_IsComplement(pNode) ^ Aig_IsComplement(pChild));
+			}
+			else {assert(false);}
+
+			Aig_ObjDisconnect(SAig, pPar);
+			
+			if ((pChild1 != NULL) && (Aig_Regular(pChild0)->Id > Aig_Regular(pChild1)->Id)) { // Fanin1 is a valid child
+				Aig_ObjConnect(SAig, pPar, pChild1, pChild0);			
+			}
+			else {
+				Aig_ObjConnect(SAig, pPar, pChild0, pChild1);
+			}
+
+			assert(Aig_ManCheck(SAig));
 		}
 
-		alreadyFalse |= !addCnfToSolver(conflictSolver, Cnf);
-		Cnf_DataFree(Cnf);
-		Aig_ManStop(AigNew);
+		Cnf_Dat_t* conflict_cnf;
 
-		patchCo(SAig, Aig_And(SAig, patch, Aig_ManCo(SAig, 0)->pFanin0));
-		assert(Aig_ManCheck(SAig));
+		sat_solver_restart(conflictSolver);
+
+		TIMED(
+			conflictCnfTime,
+			if (options.conflictCheck == 1) {
+				conflict_cnf = getConflictFormulaCNF(SAig, pi.idx);
+			} else {
+				conflict_cnf = getConflictFormulaCNF2(SAig, pi.idx);
+				// this is the newer conflict formula
+			}
+		);
+
+		alreadyFalse = !addCnfToSolver(conflictSolver, conflict_cnf);
+		for (int i = 0; i < numX; i++) {
+			varsCNF[i] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))];
+		}
+		for (int i = 0; i < numY; i++) {
+			varsCNF[i + numX] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))];
+		}
+		Cnf_DataFree(conflict_cnf);
 
 #ifdef DEBUG
 		assert(Aig_IsPositive(SAig));
@@ -3495,76 +3580,80 @@ Cnf_Dat_t *Cnf_Derive_Wrapper(Aig_Man_t *p, int nOutputs)
 	return ans;
 }
 
-vector<Aig_Obj_t*> getNodesToRectify(Aig_Man_t* SAig, int k) {
-	vector<Aig_Obj_t*> nodes;
+vector<tuple<Aig_Obj_t*, Aig_Obj_t*, Aig_Obj_t*>> getNodesToRectify(Aig_Man_t* SAig, int k) {
+	vector<tuple<Aig_Obj_t*, Aig_Obj_t*, Aig_Obj_t*>> nodes;
 
-	Aig_ManConst1(SAig)->pData = Aig_ManConst1(SAig);
-	for (int i = 0; i < numX; i++) {
-		Aig_ManCi(SAig, varsXS[i])->pData = Aig_NotCond(Aig_ManConst0(SAig), pi.X[i]);
-		Aig_ManCi(SAig, varsXS[i] + numOrigInputs)->pData = Aig_ManConst1(SAig);
+	if (!options.localRectify) {
+		nodes.push_back(make_tuple(Aig_ManCo(SAig, 0)->pFanin0, Aig_ManCo(SAig, 0), Aig_ManCo(SAig, 0)->pFanin0));
 	}
+	else {
+		unordered_map<int, tuple<int, int, int>> evals;
+		evals[Aig_ManConst1(SAig)->Id] = {1,1,1};
 
-	for (int i = 0; i < numY; i++) {
-		if (i < k) {
-			Aig_ManCi(SAig, varsYS[i])->pData = Aig_ManConst1(SAig);
-			Aig_ManCi(SAig, varsYS[i] + numOrigInputs)->pData = Aig_ManConst1(SAig);
+		for (int i = 0; i < numX; i++) {
+			evals[Aig_ManCi(SAig, varsXS[i])->Id] = {pi.X[i], pi.X[i], pi.X[i]};
 		}
-		else if (i == k) {
-			Aig_ManCi(SAig, varsYS[i])->pData = Aig_ManCi(SAig, varsYS[i]);
-			Aig_ManCi(SAig, varsYS[i] + numOrigInputs)->pData = Aig_ManCi(SAig, varsYS[i] + numOrigInputs);
+
+		for (int i = 0; i < numY; i++) {
+			if (i < k) {
+				evals[Aig_ManCi(SAig, varsYS[i])->Id] = {1,1,1};
+				evals[Aig_ManCi(SAig, varsYS[i] + numOrigInputs)->Id] = {1,1,1};
+			}
+			else if (i == k) {
+				evals[Aig_ManCi(SAig, varsYS[i])->Id] = {0,1,1};
+				evals[Aig_ManCi(SAig, varsYS[i] + numOrigInputs)->Id] = {1,0,1};
+			}
+			else {
+				evals[Aig_ManCi(SAig, varsYS[i])->Id] = {pi.Y[i], pi.Y[i], pi.Y[i]};
+				evals[Aig_ManCi(SAig, varsYS[i] + numOrigInputs)->Id] = {1-pi.Y[i], 1-pi.Y[i], 1-pi.Y[i]};
+			}
 		}
-		else {
-			Aig_ManCi(SAig, varsYS[i])->pData = Aig_NotCond(Aig_ManConst0(SAig), pi.Y[i]);
-			Aig_ManCi(SAig, varsYS[i] + numOrigInputs)->pData = Aig_NotCond(Aig_ManConst1(SAig), pi.Y[i]);
+
+		Aig_Obj_t* pObj;
+		int i;
+
+		auto dfsNodes = Aig_ManDfs(SAig, 1);
+
+		Vec_PtrForEachEntry(Aig_Obj_t*, dfsNodes, pObj, i) {
+			auto l = evals[Aig_ObjFanin0(pObj)->Id];
+			auto r = evals[Aig_ObjFanin1(pObj)->Id];
+
+			if (Aig_IsComplement(Aig_ObjChild0(pObj))) {l = {1-get<0>(l), 1-get<1>(l), 1-get<2>(l)};}
+			if (Aig_IsComplement(Aig_ObjChild1(pObj))) {r = {1-get<0>(r), 1-get<1>(r), 1-get<2>(r)};}
+
+			evals[pObj->Id] = {get<0>(l)*get<0>(r), get<1>(l)*get<1>(r), get<2>(l)*get<2>(r)};
+		}
+
+		Aig_ManCleanup(SAig);
+		
+		auto root = Aig_ManCo(SAig, 0)->pFanin0;
+		assert( (evals[Aig_Regular(root)->Id] == make_tuple(0,0,1)) || (evals[Aig_Regular(root)->Id] == make_tuple(1,1,0)) );
+
+		queue<tuple<Aig_Obj_t*, Aig_Obj_t*, Aig_Obj_t*>> objs; // regular obj, parent, child
+		objs.push(make_tuple(Aig_Regular(root), Aig_ManCo(SAig, 0), root));
+
+		while (!objs.empty()) {
+			auto objTuple = objs.front();
+			objs.pop();
+
+			auto pObj = get<0>(objTuple);
+			assert(!Aig_IsComplement(pObj));
+			assert(Aig_ObjIsNode(pObj));
+			auto not_leaf = false;
+
+			auto l = evals[Aig_ObjFanin0(pObj)->Id], r = evals[Aig_ObjFanin1(pObj)->Id];
+
+			if (l == make_tuple(0,0,1) || l == make_tuple(1,1,0)) { objs.push(make_tuple(Aig_ObjFanin0(pObj), pObj, pObj->pFanin0)); not_leaf = true; }
+			if (r == make_tuple(0,0,1) || r == make_tuple(1,1,0)) { objs.push(make_tuple(Aig_ObjFanin1(pObj), pObj, pObj->pFanin1)); not_leaf = true; }
+
+			if (!not_leaf) {
+				if (evals[pObj->Id] == make_tuple(1,1,0)) pObj = Aig_Not(pObj);
+				nodes.push_back(make_tuple(pObj, get<1>(objTuple), get<2>(objTuple)));
+				assert(Aig_Regular(pObj)->Id == Aig_ObjFaninId0(get<1>(objTuple)) || Aig_Regular(pObj)->Id == Aig_ObjFaninId1(get<1>(objTuple)));
+			}
 		}
 	}
 
-	Aig_Obj_t* pObj;
-	int i;
-	Aig_ManForEachNode(SAig, pObj, i) {
-		pObj->pData = Aig_And(SAig, Aig_ObjChild0Copy(pObj), Aig_ObjChild1Copy(pObj));
-	}
-
-	// only y_k and ybar_k remain
-
-	// 01, 10, 11
-
-	unordered_map<int, tuple<int, int, int>> evals;
-	evals[Aig_ManConst0(SAig)->Id] = {0,0,0};
-	evals[Aig_ManConst1(SAig)->Id] = {1,1,1};
-	evals[Aig_ManCi(SAig, varsYS[k])->Id] = {0,1,1};
-	evals[Aig_ManCi(SAig, varsYS[k] + numOrigInputs)->Id] = {1,0,1};
-
-	Aig_ManForEachCi(SAig, pObj, i) {
-		evals[pObj->Id] = evals[((Aig_Obj_t*) pObj->pData)->Id];
-	}
-
-	Aig_ManForEachNode(SAig, pObj, i) {
-		auto l = evals[Aig_ObjFanin0(pObj)->Id];
-		auto r = evals[Aig_ObjFanin1(pObj)->Id];
-
-		if (Aig_IsComplement(Aig_ObjChild0(pObj))) {l = {1-get<0>(l), 1-get<1>(l), 1-get<2>(l)};}
-		if (Aig_IsComplement(Aig_ObjChild1(pObj))) {r = {1-get<0>(r), 1-get<1>(r), 1-get<2>(r)};}
-
-		evals[pObj->Id] = {get<0>(l)*get<0>(r), get<1>(l)*get<1>(r), get<2>(l)*get<2>(r)};
-	}
-
-	Aig_ManForEachObj(SAig, pObj, i) {
-		if (Aig_ObjIsConst1(pObj) || Aig_ObjIsCi(pObj) || Aig_ObjIsNode(pObj)) {
-			pObj->iData = ( evals[pObj->Id] == make_tuple(0,0,1) );
-		}
-	}
-
-	Aig_ManCleanup(SAig);
-
-	auto x = evals[Aig_Regular(Aig_ManCo(SAig, 0)->pFanin0)->Id];
-
-	cout << get<0>(x) << get<1>(x) << get<2>(x) << endl;
-
-	auto root = Aig_ManCo(SAig, 0)->pFanin0;
-	
-	assert(Aig_IsComplement(root) ? 1 - Aig_Regular(root)->iData : Aig_Regular(root)->iData);
-
-	nodes.push_back(Aig_ManCo(SAig, 0)->pFanin0);
 	return nodes;
+	// returns node corresponding to y_k and ybar_k ; with parent/parent of neg
 }
