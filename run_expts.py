@@ -78,14 +78,14 @@ os.makedirs(arguments.outdir, exist_ok=True)
 
 CSV = open(f'{arguments.outdir}/runs.csv', 'w')
 
-filedict = {
-ALLUNATES   : open(f'{arguments.outdir}/{ALLUNATES}', 'w'),
-NOCONFU     : open(f'{arguments.outdir}/{NOCONFU}', 'w'),
-NOCONF      : open(f'{arguments.outdir}/{NOCONF}', 'w'),
-NOU         : open(f'{arguments.outdir}/{NOU}', 'w'),
-OTHER       : open(f'{arguments.outdir}/{OTHER}', 'w'),
-ERROR       : open(f'{arguments.outdir}/{ERROR}', 'w'),
-}
+# filedict = {
+# ALLUNATES   : open(f'{arguments.outdir}/{ALLUNATES}', 'w'),
+# NOCONFU     : open(f'{arguments.outdir}/{NOCONFU}', 'w'),
+# NOCONF      : open(f'{arguments.outdir}/{NOCONF}', 'w'),
+# NOU         : open(f'{arguments.outdir}/{NOU}', 'w'),
+# OTHER       : open(f'{arguments.outdir}/{OTHER}', 'w'),
+# ERROR       : open(f'{arguments.outdir}/{ERROR}', 'w'),
+# }
 
 wr = writer(CSV)
 
@@ -106,7 +106,7 @@ if arguments.analyse:
 depth = [20]
 rectify = [3]
 conflict = [2]
-unate = [True]
+unate = [False, True]
 shannon = [False]
 dynamic = [False, True]
 fastcnf = [False]
@@ -145,16 +145,16 @@ for (D, outputs, error) in res:
     row, bname, hash, d, d_all = process(D, outputs, error)
     wr.writerow(row)
 
-    for (k, v) in d.items():
-        assert v
-        filedict[k].write(f'{bname},{hash}\n')
+    # for (k, v) in d.items():
+    #     assert v
+    #     filedict[k].write(f'{bname},{hash}\n')
 
     json_res.append(d_all)
     
 CSV.close()
 
-for v in filedict.values():
-    v.close()
+# for v in filedict.values():
+#     v.close()
 
 with open(f'{arguments.outdir}/results.json','w') as file:
     json.dump(json_res, file)

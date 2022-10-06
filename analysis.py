@@ -1,5 +1,9 @@
+from collections import defaultdict
 from datetime import date
+from email.policy import default
+from hashlib import md5
 import json, sys
+import os
 import copy
 
 from more_itertools import difference
@@ -25,6 +29,9 @@ class Config:
 
     def __hash__(self):
         return str(self).__hash__()
+
+    def hash(self):
+        return md5(str(self).encode()).hexdigest()
 
 class Result:
     def __init__(self, data: dict):
@@ -120,7 +127,8 @@ def genericAnalysis(results):
     print()
 
     for k, v in data.items():
-        print(f"{k} ->")
+        # Per config details
+        print(f"{k} -> {k.hash()}")
 
         cnt = len(list(filter(lambda x : x.isSolved, v)))
         print(f"Fully Solved : {cnt}")
@@ -136,7 +144,7 @@ def genericAnalysis(results):
         par2 /= len(v)
         print(f"PAR2 Score : {par2:.2f}")
 
-        d = {}
+        d = defaultdict(set)
 
         for r in v:
             for f, _ in r.files.items():
@@ -145,9 +153,15 @@ def genericAnalysis(results):
         
         assert len(set(d.keys()).difference(set(FILENAMES))) == 0
 
+        folder = f'{sys.argv[1].rsplit("/", 1)[0]}/{k.hash()}'
+        os.makedirs(folder, exist_ok=True)
+
         print("[", end=' ')
         for k1, v1 in sorted(d.items()):
             print(f"{k1} -> {len(v1)},", end=' ')
+            with open(f'{folder}/{k1}', 'w') as f:
+                f.writelines([f'{x.benchmark}\n' for x in v1])
+
         # ALLUNATES subset of NOCONFU
         # NOU can be in NOCONFU
         print(f"{NOCONFU} - {ALLUNATES} - {NOU} -> {len(d[NOCONFU].difference(d[ALLUNATES]).difference(d[NOU]))},", end=' ')
