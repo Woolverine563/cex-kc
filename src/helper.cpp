@@ -3382,6 +3382,7 @@ void calcLeastOccurrenceSAig(Aig_Man_t *SAig, int minIdx)
 	swap(varsYS[minIdx + it - ranks.begin()], varsYS[minIdx]);
 	swap(varsYF[minIdx + it - ranks.begin()], varsYF[minIdx]);
 	swap(varsCNF[numX + minIdx + it - ranks.begin()], varsCNF[numX + minIdx]);
+	swap(unates[minIdx + it - ranks.begin()], unates[minIdx]);
 }
 
 Cnf_Dat_t *Cnf_DeriveFast_Wrapper(Aig_Man_t *p, int nOutputs)

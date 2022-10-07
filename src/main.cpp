@@ -15,6 +15,8 @@ vector<int> varsXF, varsXS;
 vector<int> varsYF, varsYS; // to be eliminated.
 vector<int> varsCNF;		// Aig Node ID to Cnf Var mapping!
 vector<int> AigToCNF;
+
+vector<int> unates;
 ConflictCounterEx pi;
 int numOrigInputs = 0, numX = 0, numY = 0;
 vector<string> varsNameX, varsNameY;
@@ -60,11 +62,12 @@ int main(int argc, char **argv)
 	varsCNF = vector<int>(numX + numY, -1);
 	AigToCNF = vector<int>(numX + numY + 1, -1);
 	conflictSolver = sat_solver_new();
+	unates = vector<int>(numY, -1);
 	///////////////////////////////////////
 	// INITIALIZATION
 	//////////////////////////////////////
 
-	vector<int> unates(numY, -1);
+	// vector<int> unates(numY, -1);
 
 	SAig = NormalToPositive(FAig);
 	Aig_ManStop(FAig);
@@ -93,6 +96,7 @@ int main(int argc, char **argv)
 	FCnf = Cnf_Derive_Wrapper(FAig, 0);
 	Aig_ManStop(FAig);
 
+	// pi.idx not updated in unates???
 	TIMED(
 		conflictCnfTime,
 		if (options.conflictCheck == 1) {
@@ -202,6 +206,7 @@ int main(int argc, char **argv)
 
 				if (ans == l_False)
 				{
+					cout << "Conflict Free :" << pi.idx << endl;
 					repaired++;
 					pi.idx++;
 

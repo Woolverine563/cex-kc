@@ -182,6 +182,7 @@ extern vector<int> varsSInv;
 extern vector<int> varsXF, varsXS;
 extern vector<int> varsYF, varsYS; // to be eliminated
 extern vector<int> varsCNF;		   // Aig Node ID to Cnf Var mapping!
+extern vector<int> unates;
 extern vector<int> AigToCNF;
 extern ConflictCounterEx pi;
 extern int numOrigInputs, numX, numY;
