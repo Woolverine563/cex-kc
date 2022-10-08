@@ -1,7 +1,7 @@
 #include "helper.h"
 // #include "formula.h"
 #include "nnf.h"
-#include <boost/functional/hash.hpp>
+// #include <boost/functional/hash.hpp>
 
 using namespace ABC_NAMESPACE;
 
@@ -32,7 +32,7 @@ std::ostream &operator<<(std::ostream &os, const ConflictCounterEx &cce)
 void parseOptions(int argc, char *argv[])
 {
 	optParser.positional_help("");
-	optParser.add_options()("b, benchmark", "Specify the benchmark (required)", cxxopts::value<string>(options.benchmark), "FILE")("v, varsOrder", "Specify the variable ordering", cxxopts::value<string>(options.varsOrder), "FILE")("c, conflictCheck", "Specifies the conflict check method", cxxopts::value<int>(options.conflictCheck)->default_value("2"))("r, rectifyProc", "Specifies the rectification procedure employed", cxxopts::value<int>(options.rectifyProc)->default_value("3"))("d, depth", "Specifies the depth of the cut nodes", cxxopts::value<int>(options.depth)->default_value("10"))("t, timeOut", "Specifies the timeout used", cxxopts::value<int>(options.timeout)->default_value("3600"))("a, allIndices", "Specifies whether all indices are fixed for a counter-example at once", cxxopts::value<bool>(options.fixAllIndices))("u, unate", "Specifies whether to use unates or not", cxxopts::value<bool>(options.unate))("s, shannon", "Use shannon expansion", cxxopts::value<bool>(options.useShannon))("unateTimeout", "Timeout for fixed-point unate computation", cxxopts::value<int>(options.unateTimeout)->default_value("600"))("q, allowUnivQuantify", "Allows universal quantification in cut choices", cxxopts::value<bool>(options.allowUnivQuantify))("o, dynamicOrdering", "Use dynamic ordering", cxxopts::value<bool>(options.dynamicOrdering))("f, useFastCnf", "Use Fast CNF", cxxopts::value<bool>(options.useFastCnf))("h, help", "Print this help");
+	optParser.add_options()("b, benchmark", "Specify the benchmark (required)", cxxopts::value<string>(options.benchmark), "FILE")("v, varsOrder", "Specify the variable ordering", cxxopts::value<string>(options.varsOrder), "FILE")("out", "Out folder path", cxxopts::value<string>(options.outFolderPath), "PATH")("c, conflictCheck", "Specifies the conflict check method", cxxopts::value<int>(options.conflictCheck)->default_value("2"))("r, rectifyProc", "Specifies the rectification procedure employed", cxxopts::value<int>(options.rectifyProc)->default_value("3"))("d, depth", "Specifies the depth of the cut nodes", cxxopts::value<int>(options.depth)->default_value("10"))("t, timeOut", "Specifies the timeout used", cxxopts::value<int>(options.timeout)->default_value("3600"))("a, allIndices", "Specifies whether all indices are fixed for a counter-example at once", cxxopts::value<bool>(options.fixAllIndices))("u, unate", "Specifies whether to use unates or not", cxxopts::value<bool>(options.unate))("s, shannon", "Use shannon expansion", cxxopts::value<bool>(options.useShannon))("unateTimeout", "Timeout for fixed-point unate computation", cxxopts::value<int>(options.unateTimeout)->default_value("600"))("q, allowUnivQuantify", "Allows universal quantification in cut choices", cxxopts::value<bool>(options.allowUnivQuantify))("o, dynamicOrdering", "Use dynamic ordering", cxxopts::value<bool>(options.dynamicOrdering))("f, useFastCnf", "Use Fast CNF", cxxopts::value<bool>(options.useFastCnf))("h, help", "Print this help");
 
 	// optParser.parse_positional(vector<string>({"benchmark", "varsOrder"}));
 	auto result = optParser.parse(argc, argv);
@@ -48,7 +48,25 @@ void parseOptions(int argc, char *argv[])
 		cerr << endl
 			 << "Error: Benchmark not specified" << endl
 			 << endl;
-		cout << optParser.help({"", "Group"}) << std::endl;
+		cout << optParser.help({"", "Group"}) << endl;
+		exit(0);
+	}
+
+	if (!result.count("varsOrder"))
+	{
+		cerr << endl
+			 << "Error: Ordering not specified" << endl
+			 << endl;
+		cout << optParser.help({"", "Group"}) << endl;
+		exit(0);
+	}
+
+	if (!result.count("out"))
+	{
+		cerr << endl
+			 << "Error: Output Folder Path not specified" << endl
+			 << endl;
+		cout << optParser.help({"", "Group"}) << endl;
 		exit(0);
 	}
 
@@ -1250,7 +1268,7 @@ int checkUnateSyntacticAll(Aig_Man_t *FAig, vector<int> &unate, int beginIdx)
 			}
 		}
 	}
-	cout << "Found " << numUnate << " unates" << endl;
+	cout << "Found " << numUnate << " syntactic unates" << endl;
 	return numUnate;
 }
 
@@ -1389,7 +1407,7 @@ int checkUnateSemAll(Aig_Man_t *FAig, vector<int> &unate, int beginIdx)
 				}
 			}
 		}
-		cout << "Found " << numUnate << " unates" << endl;
+		cout << "Found " << numUnate << " semantic unates" << endl;
 		totalNumUnate += numUnate;
 
 		auto unate_end = std::chrono::steady_clock::now();
@@ -3487,4 +3505,46 @@ Cnf_Dat_t *Cnf_Derive_Wrapper(Aig_Man_t *p, int nOutputs)
 			ans = Cnf_Derive(p, nOutputs);
 		})
 	return ans;
+}
+
+void dumpResults(Aig_Man_t* SAig, map<int, string> id2NameF) {
+	// outFolderPath is the top level path, ends with a / always
+	auto unatesFile = options.outFolderPath + "/Unates/" + getFileName(options.benchmark);
+	auto pUnates = ofstream(unatesFile + ".pUnates"), nUnates = ofstream(unatesFile + ".nUnates");
+
+	for (int i = 0; i < numY; i++) {
+		if (unates[i] == 0) {
+			nUnates << id2NameF[Aig_ManCi(SAig, varsYS[i])->Id] << endl;
+		}
+		else if (unates[i] == 1) {
+			pUnates << id2NameF[Aig_ManCi(SAig, varsYS[i])->Id] << endl;
+		}
+	}
+
+	pUnates.close();
+	nUnates.close();
+
+	auto orderingFile = ofstream(options.outFolderPath + "/OrderFiles/" + getFileName(options.varsOrder) + ".final.txt");
+	
+	for (int i = 0; i < numY; i++) {
+		orderingFile << id2NameF[Aig_ManCi(SAig, varsYS[i])->Id] << endl;
+	}
+	orderingFile.close();
+
+	auto verilogPath = options.outFolderPath + "/Verilogs/" + getFileName(options.benchmark) + ".result.v";
+
+	Aig_Obj_t* pObj;
+	int i;
+	Aig_ManForEachCi(SAig, pObj, i) {
+		
+	}
+
+	Aig_ManDumpVerilog(SAig, verilogPath.data());
+
+	// auto aigPath = options.outFolderPath + "/Aigs/" + getFileName(options.benchmark) + ".result.aig";
+
+	// auto vPoNames = Vec_PtrAlloc(2);
+	// Vec_PtrPush(vPoNames, "")
+
+	// Aig_ManDumpBlif(SAig, aigPath, )
 }

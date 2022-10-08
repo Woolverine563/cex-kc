@@ -7,7 +7,8 @@ VORDER_FIELD = "-v"
 TIMEOUT_FIELD = "-t"
 UNATE_FIELD = "-u"
 FASTCNF_FIELD = "-f"
-BOOL_FIELDS = [UNATE_FIELD,"-s","-o",FASTCNF_FIELD]
+DYNORDER_FIELD = "-o"
+BOOL_FIELDS = [UNATE_FIELD,"-s",DYNORDER_FIELD,FASTCNF_FIELD]
 VAL_FIELDS = [ "-c", "-r", "-d", TIMEOUT_FIELD, "--unateTimeout"]
 NON_BOOL_FIELDS = [BNAME_FIELD, VORDER_FIELD] + VAL_FIELDS
 CONFIG_FIELDS = BOOL_FIELDS + VAL_FIELDS
@@ -16,12 +17,14 @@ FIELDS = [BNAME_FIELD, VORDER_FIELD] + CONFIG_FIELDS + [HASH]
 
 INIT_UN = "Initial unates"
 FIN_UN = "Final unates"
+PHASE_CNT = "Phase Count"
 TOT_OUTPUTS = "Total outputs without unate"
 FIXED_OUTPUTS = "Outputs fixed"
 NUM_CEX = "Number of cex"
 TOT_TIME = "Time taken"
+ERR = "ERROR"
 
-RESULTS = ["Initial size", "Final size", INIT_UN, FIN_UN, "Number of iterations", NUM_CEX, FIXED_OUTPUTS, TOT_OUTPUTS, TOT_TIME, "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime", "compressTime", "rectifyCnfTime", "rectifyUnsatCoreTime", "overallCnfTime", "ERROR"]
+RESULTS = ["Initial size", "Final size", INIT_UN, FIN_UN, PHASE_CNT, "Number of iterations", NUM_CEX, FIXED_OUTPUTS, TOT_OUTPUTS, TOT_TIME, "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime", "compressTime", "rectifyCnfTime", "rectifyUnsatCoreTime", "overallCnfTime", ERR]
 
 # ["Benchmark", "VarOrder", "unate?","shannon?", "dynamic?", "fastCNF?"]
 HEADER = FIELDS + RESULTS
@@ -32,8 +35,10 @@ NOCONF = "noConflicts"
 NOU = "noUnates"
 OTHER = "others"
 ERROR = "error"
+FIXEDCONF = "fixedConflicts"
+SOMEU = "someUnates"
 
-FILENAMES = [ALLUNATES, NOCONFU, NOCONF, NOU, OTHER, ERROR]
+FILENAMES = [ALLUNATES, NOCONFU, NOCONF, NOU, OTHER, ERROR, FIXEDCONF, SOMEU]
 
 IS_SOLVED = "isSolved"
 
