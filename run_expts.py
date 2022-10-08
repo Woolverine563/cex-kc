@@ -20,6 +20,8 @@ def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
         args.append(k)
         args.append(str(v))
 
+    args.extend(["--out", arguments.outdir])
+
     bname = D[BNAME_FIELD]
     # default ordering is being used
 
@@ -27,7 +29,7 @@ def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
     D[HASH] = hash
 
     try:
-        oup = check_output(args, stderr=STDOUT, timeout=2*D[TIMEOUT_FIELD])
+        oup = check_output(args, stderr=STDOUT, timeout=D[TIMEOUT_FIELD] + 60)
         # Hard timeout of atmost twice
 
         os.makedirs(f'{arguments.outdir}/outputs', exist_ok=True)
@@ -46,14 +48,15 @@ def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
         initial = lines[0].split(b':')[1].strip().split()[0].decode()
         final = lines[1].split(b':')[1].strip().split()[0].decode()
         init_u = lines[2].split(b':')[1].strip().split()[0].decode()
-        tot_u = lines[2].split(b':')[1].strip().split()[-1].decode()
+        tot_u = lines[2].split(b':')[1].strip().split()[4].decode()
+        phases = lines[2].split(b':')[1].strip().split()[-2].decode()
         iters = lines[3].split()[1].decode()
         counterexs = lines[3].split(b':')[1].strip().split()[0].decode()
         idx = lines[3].split(b', ')[1].strip().split()[0].decode()
         numY = lines[3].split()[-2].decode()
         time = lines[4].strip().split()[0].decode()
 
-        return D, [initial, final, init_u, tot_u, iters, counterexs, idx, numY, time] + [x.decode() for x in lines[5].strip().split()] + [""], False
+        return D, [initial, final, init_u, tot_u, phases, iters, counterexs, idx, numY, time] + [x.decode() for x in lines[5].strip().split()] + [""], False
         # empty error field
 
     except Exception as e:
@@ -106,9 +109,9 @@ if arguments.analyse:
 depth = [20]
 rectify = [3]
 conflict = [2]
-unate = [False, True]
+unate = [True]
 shannon = [False]
-dynamic = [False, True]
+dynamic = [False]
 fastcnf = [False]
 timeout = arguments.timeout
 unatetimeout = arguments.timeout if (len(arguments.unatetimeout) == 0) else arguments.unatetimeout

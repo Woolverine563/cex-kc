@@ -44,6 +44,8 @@ int main(int argc, char **argv)
 	Cnf_Dat_t *conflict_cnf;
 	int compressFreq = 5;
 	int repaired = 0;
+	bool phase = false;
+	int phaseCount = 0;
 
 	parseOptions(argc, argv);
 
@@ -164,6 +166,11 @@ int main(int argc, char **argv)
 
 				if (cnt > 0)
 				{
+					if (phase) {
+						phase = false;
+						phaseCount++;
+					}
+
 					FAig = PositiveToNormalWithNeg(SAig);
 					FCnf = Cnf_Derive_Wrapper(FAig, 0);
 					Aig_ManStop(FAig);
@@ -209,6 +216,7 @@ int main(int argc, char **argv)
 					cout << "Conflict Free :" << pi.idx << endl;
 					repaired++;
 					pi.idx++;
+					phase = true;
 
 					if (pi.idx >= numY)
 					{
@@ -323,12 +331,14 @@ int main(int argc, char **argv)
 	cout << "Initial formula had : " << initSize << " nodes" << endl;
 	cout << "Final formula has : " << Aig_ManObjNum(SAig) << " nodes" << endl;
 
-	cout << "Unates : " << init_unates << " initially out of " << tot_unates << endl;
+	cout << "Unates : " << init_unates << " initially out of " << tot_unates << " in total " << phaseCount << " phases" << endl;
 
 	cout << "Took " << it << " iterations of algorithm : " << i << " number of counterexamples, " << repaired << " outputs repaired out of non-unate " << numY - tot_unates << " outputs" << endl;
 
 	cout << double(clock() - start) / CLOCKS_PER_SEC << " seconds" << endl;
 	cout << repairTime << " " << conflictCnfTime << " " << satSolvingTime << " " << unateTime << " " << compressTime << " " << rectifyCnfTime << " " << rectifyUnsatCoreTime << " " << overallCnfTime << endl;
+
+	dumpResults(SAig, id2NameF);
 
 	// Aig_ManDumpVerilog(SAig, (char*) (options.outFName).c_str());
 	Aig_ManStop(SAig);
