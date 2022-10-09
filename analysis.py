@@ -241,8 +241,10 @@ def ratioOutputsSolved(results: List[Result]):
                 continue
             tot_oups = int(res.results[TOT_OUTPUTS])
             fixed_oups = int(res.results[FIXED_OUTPUTS])
-
-            values[res.isSolved].append((res.benchmark, fixed_oups/tot_oups if tot_oups != 0 else 1, fixed_oups, tot_oups, int(res.results[INIT_UN]), int(res.results[FIN_UN])))
+            
+            if tot_oups == 0:
+                continue
+            values[res.isSolved].append((res.benchmark, fixed_oups/tot_oups, fixed_oups, tot_oups, int(res.results[INIT_UN]), int(res.results[FIN_UN])))
 
         bar1 = values[False]
         bar1.sort(key=lambda x: x[1])
@@ -272,7 +274,7 @@ def unatePostProcessing(results: List[Result], force_run = False):
     global PLOT_CNT
     data = separateConfigs(results, {UNATE_FIELD: UNATE_FIELD})
 
-    run(["make", "postprocess"], stderr=STDOUT)
+    run(["make", "postprocess"])
 
     for c, r in data.items():
         # folder
@@ -285,11 +287,14 @@ def unatePostProcessing(results: List[Result], force_run = False):
             unatesPref = f"{folder}/Unates/{res.benchmark.split('/')[-1].rsplit('.', 1)[0]}"
             pUnatesF, nUnatesF = unatesPref + '.pUnates', unatesPref + '.nUnates'
 
+            if (not os.path.exists(pUnatesF)) or (not os.path.exists(nUnatesF)):
+                continue
+
             unatesOnlyPref = f"{folder}/UnatesOnly/{res.benchmark.split('/')[-1].rsplit('.', 1)[0]}"
             pUOnlyF, nUOnlyF = unatesOnlyPref + '.pUnates', unatesOnlyPref + '.nUnates'
 
             if (force_run) or (not os.path.exists(pUOnlyF)) or (not os.path.exists(nUOnlyF)):
-                oup = check_output(["bin/postprocess", "-b", res.benchmark, "-p", f"{unatesPref}.pUnates", "-n", f"{unatesPref}.nUnates", "--out", folder], stderr=STDOUT)
+                oup = check_output(["bin/postprocess", "-b", res.benchmark, "-p", f"{unatesPref}.pUnates", "-n", f"{unatesPref}.nUnates", "--out", folder])
 
                 pu, nu, puOnly, nuOnly = map(int, oup.decode().split())
             else:
@@ -299,11 +304,17 @@ def unatePostProcessing(results: List[Result], force_run = False):
 
                 [pu, nu, puOnly, nuOnly] = map(line_count, [pUnatesF, nUnatesF, pUOnlyF, nUOnlyF])
 
-            values.append((res, (puOnly+nuOnly)/(pu+nu) if (pu+nu) != 0 else 1, pu+nu, puOnly+nuOnly))
+            if (pu+nu == 0):
+                continue
+            values.append((res, (puOnly+nuOnly)/(pu+nu), pu+nu, puOnly+nuOnly))
 
+        if (len(values) == 0):
+            continue
         values.sort(key=lambda x: x[1])
 
         yvalues = [x[1] for x in values]
+        print(scipy.stats.describe(yvalues))
+        print([(t[0].benchmark, t[1], t[2], t[3]) for t in values if t[1] > 0])
 
         plt.figure()
         plt.bar(range(len(yvalues)), yvalues, width=1.0)
@@ -324,7 +335,7 @@ for file in sys.argv[1:]:
     print(f"{file}")
     print('-'*100 + '\n')
 
-    # genericAnalysis(results)
-    # beyondManthan(results)
-    # ratioOutputsSolved(results)
+    genericAnalysis(results)
+    beyondManthan(results)
+    ratioOutputsSolved(results)
     unatePostProcessing(results)
