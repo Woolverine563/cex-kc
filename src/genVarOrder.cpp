@@ -14,9 +14,9 @@ vector<int> varsXF, varsXS;
 vector<int> varsYF, varsYS; // to be eliminated
 int numOrigInputs = 0, numX = 0, numY = 0;
 vector<string> varsNameX, varsNameY;
-Abc_Frame_t *pAbc = NULL;
-sat_solver *conflictSolver = NULL;
-Cnf_Dat_t *FCnf = NULL;
+Abc_Frame_t* pAbc = NULL;
+sat_solver* m_pSat = NULL;
+Cnf_Dat_t* m_FCnf = NULL;
 lit m_f = 0;
 double sat_solving_time = 0;
 double verify_sat_solving_time = 0;
