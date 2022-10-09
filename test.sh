@@ -2,6 +2,7 @@
 folder=`git rev-parse --short=6 HEAD`
 mkdir -p "${folder}/results/outputs/"
 mkdir -p "${folder}/results/Unates"
+mkdir -p "${folder}/results/UnatesOnly"
 mkdir -p "${folder}/results/OrderFiles"
 mkdir -p "${folder}/results/Verilogs"
 mkdir -p "${folder}/analysis/"
