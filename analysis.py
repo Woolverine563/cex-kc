@@ -1,19 +1,19 @@
 from ast import Str
 from collections import defaultdict
-from datetime import date
-from email.policy import default
 from hashlib import md5
 import json, sys
+from statistics import mean
 import os
 import copy
 from typing import Any, Dict, List
-
-from more_itertools import difference
+import scipy.stats
 from util import *
 import itertools
 import matplotlib.pyplot as plt
+from subprocess import STDOUT, check_output, run
 
 MAN_TIMEOUT = 3600 + 100 # slack
+PLOT_CNT = 0
 
 class Config:
     def __init__(self, config: Dict[str, str]):
@@ -106,7 +106,7 @@ def separateConfigs(results: List[Result], filterFields: Dict[str, Any] = {}):
         config, res = r.extract(CONFIG_FIELDS)
         data[config].append(res)
 
-    for k in data.keys():
+    for k in list(data.keys()):
         if (not k.match(filterFields)):
             data.pop(k)
      
@@ -155,7 +155,7 @@ def genericAnalysis(results: List[Result]):
 
     print(f"Total benchmarks solved across any config: {len(total)} out of {max([len(v) for v in data.values()])}")
 
-    err_results = list(filter(lambda x : x.results["ERROR"] is not '', itertools.chain(*data.values())))
+    err_results = list(filter(lambda x : x.results["ERROR"] != '', itertools.chain(*data.values())))
 
     errors = [(x.benchmark, x.orderfile) for x in err_results]
     timeouts = [(x.benchmark, x.orderfile) for x in filter(lambda x : 'timed out' in x.results["ERROR"], err_results)]
@@ -229,9 +229,9 @@ def beyondManthan(results: List[Result]):
         print(r)
         print()
 
-def percentageOutputsSolved(results: List[Result]):
+def ratioOutputsSolved(results: List[Result]):
+    global PLOT_CNT
     data = separateConfigs(results)
-    i = 0
 
     # we may need per config graph
     for _, r in data.items():
@@ -242,12 +242,19 @@ def percentageOutputsSolved(results: List[Result]):
             tot_oups = int(res.results[TOT_OUTPUTS])
             fixed_oups = int(res.results[FIXED_OUTPUTS])
 
-            values[res.isSolved].append((res.benchmark, fixed_oups/tot_oups if tot_oups != 0 else 1))
+            values[res.isSolved].append((res.benchmark, fixed_oups/tot_oups if tot_oups != 0 else 1, fixed_oups, tot_oups, int(res.results[INIT_UN]), int(res.results[FIN_UN])))
 
         bar1 = values[False]
         bar1.sort(key=lambda x: x[1])
         xvalues = [x[0] for x in bar1]
         y1 = [x[1] for x in bar1]
+
+        print(mean(y1), scipy.stats.gmean(list(filter(lambda x: x != 0, y1))), mean(list(filter(lambda x: x != 0, y1))))
+        print()
+        
+        almostSolved = list(filter(lambda t: 0.9 <= t[1] <= 1.0, bar1))
+        print(f"Almost solved {len(almostSolved)} benchmarks")
+        print(almostSolved)
 
         plt.figure()
         plt.bar(xvalues, y1, color='blue', label='Outputs fixed / Non-unate outputs', width=1.0)
@@ -258,15 +265,66 @@ def percentageOutputsSolved(results: List[Result]):
         plt.legend(loc='upper left')
         plt.autoscale(enable=True, axis='both', tight=True)
         plt.tight_layout()
-        plt.savefig(f'graph_{i}.png')
-        i += 1
+        plt.savefig(f'graph_{PLOT_CNT}_ratio_outputs.png')
+        PLOT_CNT += 1
 
-# with open(sys.argv)
-with open(sys.argv[1], 'r') as f:
-    data = json.load(f)
+def unatePostProcessing(results: List[Result], force_run = False):
+    global PLOT_CNT
+    data = separateConfigs(results, {UNATE_FIELD: UNATE_FIELD})
 
-results = [Result(x) for x in data]
+    run(["make", "postprocess"], stderr=STDOUT)
 
-genericAnalysis(results)
-beyondManthan(results)
-percentageOutputsSolved(results)
+    for c, r in data.items():
+        # folder
+        folder = getattr(c, OUTFOLDR_FIELD) if (hasattr(c, OUTFOLDR_FIELD)) else f"{sys.argv[1].rsplit('/', 1)[0]}/"
+
+        values = []
+        for res in r:
+            if (res.error != ''):
+                continue
+            unatesPref = f"{folder}/Unates/{res.benchmark.split('/')[-1].rsplit('.', 1)[0]}"
+            pUnatesF, nUnatesF = unatesPref + '.pUnates', unatesPref + '.nUnates'
+
+            unatesOnlyPref = f"{folder}/UnatesOnly/{res.benchmark.split('/')[-1].rsplit('.', 1)[0]}"
+            pUOnlyF, nUOnlyF = unatesOnlyPref + '.pUnates', unatesOnlyPref + '.nUnates'
+
+            if (force_run) or (not os.path.exists(pUOnlyF)) or (not os.path.exists(nUOnlyF)):
+                oup = check_output(["bin/postprocess", "-b", res.benchmark, "-p", f"{unatesPref}.pUnates", "-n", f"{unatesPref}.nUnates", "--out", folder], stderr=STDOUT)
+
+                pu, nu, puOnly, nuOnly = map(int, oup.decode().split())
+            else:
+                def line_count(file):
+                    with open(file) as f:
+                        return len(list(filter(lambda x: x != '', f.readlines())))
+
+                [pu, nu, puOnly, nuOnly] = map(line_count, [pUnatesF, nUnatesF, pUOnlyF, nUOnlyF])
+
+            values.append((res, (puOnly+nuOnly)/(pu+nu) if (pu+nu) != 0 else 1, pu+nu, puOnly+nuOnly))
+
+        values.sort(key=lambda x: x[1])
+
+        yvalues = [x[1] for x in values]
+
+        plt.figure()
+        plt.bar(range(len(yvalues)), yvalues, width=1.0)
+        plt.xticks([])
+        plt.ylabel('Ratio')
+        plt.xlabel('Benchmarks')
+        plt.autoscale(enable=True, axis='both', tight=True)
+        plt.tight_layout()
+        plt.savefig(f'graph_{PLOT_CNT}_ratio_unates.png')
+        PLOT_CNT += 1
+
+for file in sys.argv[1:]:
+    with open(file, 'r') as f:
+        data = json.load(f)
+
+    results = [Result(x) for x in data]
+    print('\n' + '-'*100)
+    print(f"{file}")
+    print('-'*100 + '\n')
+
+    # genericAnalysis(results)
+    # beyondManthan(results)
+    # ratioOutputsSolved(results)
+    unatePostProcessing(results)

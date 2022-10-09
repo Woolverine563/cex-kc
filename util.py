@@ -4,6 +4,7 @@ HASH = "Hash"
 
 BNAME_FIELD = "-b"
 VORDER_FIELD = "-v"
+OUTFOLDR_FIELD = "--out"
 TIMEOUT_FIELD = "-t"
 UNATE_FIELD = "-u"
 FASTCNF_FIELD = "-f"

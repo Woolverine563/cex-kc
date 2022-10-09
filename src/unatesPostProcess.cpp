@@ -1,5 +1,4 @@
 #include "unatesPostProcess.h"
-#include "helper.h"
 
 using namespace std;
 
@@ -9,6 +8,8 @@ int main(int argc, char** argv) {
     map<string, int> name2IdF;
     map<int, string> id2NameF;
     string line;
+
+    int pu = 0, nu = 0, puOnly = 0, nuOnly = 0;
 
     optParser.positional_help("");
     optParser.add_options()
@@ -47,6 +48,7 @@ int main(int argc, char** argv) {
     while (getline(posStream, line)) {
         if (line != "") {
             unates.push_back(make_pair(name2IdF[line] - 1, true)); // no asserts inserted, AIG IO id is here
+            pu++;
         }
     }
     posStream.close();
@@ -56,6 +58,7 @@ int main(int argc, char** argv) {
     while (getline(negStream, line)) {
         if (line != "") {
             unates.push_back(make_pair(name2IdF[line] - 1, false));
+            nu++;
         }
     }
     negStream.close();
@@ -91,9 +94,11 @@ int main(int argc, char** argv) {
         string ans = id2NameF[obj.first];
         if (obj.second) {
             pUnates << ans << endl;
+            puOnly++;
         }
         else {
             nUnates << ans << endl;
+            nuOnly++;
         }
     }
 
@@ -102,4 +107,6 @@ int main(int argc, char** argv) {
 
     Aig_ManStop(FAig);
     Abc_NtkDelete(FNtk);
+
+    cout << pu << " " << nu << " " << puOnly << " " << nuOnly << endl;
 }

@@ -41,7 +41,7 @@ COMMON_SOURCES  = $(SRCDIR)/nnf.cpp $(SRCDIR)/helper.cpp
 MAIN_SOURCES  = $(SRCDIR)/main.cpp $(COMMON_SOURCES)
 MAIN_OBJECTS  = $(MAIN_SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 
-POSTP_SOURCES = $(SRCDIR)/unatesPostProcess.cpp $(COMMON_SOURCES)
+POSTP_SOURCES = $(SRCDIR)/unatesPostProcess.cpp
 POSTP_OBJECTS = $(POSTP_SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 
 ALL_OBJECTS   = $(sort $(MAIN_OBJECTS) $(POSTP_OBJECTS))
@@ -61,6 +61,7 @@ $(TARGET_MAIN): $(MAIN_OBJECTS)
 
 $(TARGET_POSTP): $(POSTP_OBJECTS)
 	$(CXX) $(CPP_FLAGS) -o $@ $^ $(LFLAGS)
+	@echo "Built Target! - postprocess"
 
 $(ALL_OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 	$(CXX) $(CPP_FLAGS) -c $^ -o $@  $(LFLAGS)
