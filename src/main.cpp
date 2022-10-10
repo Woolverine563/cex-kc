@@ -65,8 +65,7 @@ int main(int argc, char** argv) {
 
 	SAig = NormalToPositive(FAig);
 	Aig_ManStop(FAig);
-
-	SAig = compressAigByNtkMultiple(SAig, 3);
+	SAig = compressAig(SAig);
 
 	int initSize = Aig_ManObjNum(SAig);
 
@@ -81,8 +80,6 @@ int main(int argc, char** argv) {
 		tot_unates += cnt;
 		setUnatesSaig(SAig, unates);)
 	}
-
-	SAig = compressAig(SAig);
 
 	FAig = PositiveToNormalWithNeg(SAig);
 	m_FCnf = Cnf_Derive_Wrapper(FAig, 0);
@@ -162,6 +159,12 @@ int main(int argc, char** argv) {
 				if (ans == l_False) {
 					repaired++;
 					pi.idx++;
+					phase = true;
+
+					if (pi.idx >= numY) {
+						break;
+					}
+
 					if (options.dynamicOrdering) {
 						calcLeastOccurrenceSAig(SAig, pi.idx);
 					}
