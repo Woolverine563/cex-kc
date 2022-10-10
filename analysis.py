@@ -6,7 +6,7 @@ from statistics import mean
 import os
 import copy
 from typing import Any, Dict, List
-import scipy.stats
+from scipy.stats import describe, gmean
 from util import *
 import itertools
 import matplotlib.pyplot as plt
@@ -144,7 +144,7 @@ def compareFastCNFTime(results):
 
     print(list(plot.values()))
 
-def genericAnalysis(results: List[Result]):
+def genericTotalAnalysis(results: List[Result]):
     # total results for every possible config
     data = separateConfigs(results)
 
@@ -168,163 +168,174 @@ def genericAnalysis(results: List[Result]):
     print()
     print()
 
-    for k, v in data.items():
-        # Per config details
-        print(f"{k} -> {k.hash()}")
+def genericAnalysis(c: Config, results: List[Result], file: str):
 
-        cnt = len(list(filter(lambda x : x.isSolved, v)))
-        print(f"Fully Solved : {cnt}")
+    cnt = len(list(filter(lambda x : x.isSolved, results)))
+    print(f"Fully Solved : {cnt}")
 
-        par2 = 0
-        for s in v:
-            if s.isSolved:
-                par2 += float(s.results[TOT_TIME])
-            else:
-                par2 += k.__dict__[TIMEOUT_FIELD] * 2
+    par2 = 0
+    for s in results:
+        if s.isSolved:
+            par2 += float(s.results[TOT_TIME])
+        else:
+            par2 += c.__dict__[TIMEOUT_FIELD] * 2
 
 
-        par2 /= len(v)
-        print(f"PAR2 Score : {par2:.2f}")
+    par2 /= len(results)
+    print(f"PAR2 Score : {par2:.2f}")
 
-        d = defaultdict(set)
+    d = defaultdict(set)
 
-        for r in v:
-            analysDict = r.analyse()
-            for x,y in analysDict.items():
-                if (y):
-                    d[x].add(r)
-            # for f, _ in r.files.items():
-            #     d[f] = d.get(f, set())
-            #     d[f].add(r)
-        
-        assert len(set(d.keys()).difference(set(FILENAMES))) == 0
+    for r in results:
+        analysDict = r.analyse()
+        for x,y in analysDict.items():
+            if (y):
+                d[x].add(r)
+        # for f, _ in r.files.items():
+        #     d[f] = d.get(f, set())
+        #     d[f].add(r)
+    
+    assert len(set(d.keys()).difference(set(FILENAMES))) == 0
 
-        folder = f'{sys.argv[1].rsplit("/", 1)[0]}/{k.hash()}'
-        os.makedirs(folder, exist_ok=True)
+    folder = f'{file.rsplit("/", 1)[0]}/{c.hash()}'
+    os.makedirs(folder, exist_ok=True)
 
-        print("[")
-        for k1, v1 in sorted(d.items()):
-            print(f"\t{k1} -> {len(v1)}")
-            with open(f'{folder}/{k1}', 'w') as f:
-                f.writelines([f'{x.benchmark}\n' for x in v1])
+    print("[")
+    for k1, v1 in sorted(d.items()):
+        print(f"\t{k1} -> {len(v1)}")
+        with open(f'{folder}/{k1}', 'w') as f:
+            f.writelines([f'{x.benchmark}\n' for x in v1])
 
-        print(f"\t{FIXEDCONF} \u22c2 {SOMEU} -> {len(d[FIXEDCONF].intersection(d[SOMEU]))}")        
-        print(f"\t{NOCONF} \u22c2 {SOMEU} -> {len(d[NOCONF].intersection(d[SOMEU]))}")
-        print(f"\t{FIXEDCONF} \u22c2 {NOU} -> {len(d[FIXEDCONF].intersection(d[NOU]))}")
-        print(f"\t{NOCONF} \u22c2 {NOU} -> {len(d[NOCONF].intersection(d[NOU]))}")
-        print("]")
-        print()
+    print(f"\t{FIXEDCONF} \u22c2 {SOMEU} -> {len(d[FIXEDCONF].intersection(d[SOMEU]))}")        
+    print(f"\t{NOCONF} \u22c2 {SOMEU} -> {len(d[NOCONF].intersection(d[SOMEU]))}")
+    print(f"\t{FIXEDCONF} \u22c2 {NOU} -> {len(d[FIXEDCONF].intersection(d[NOU]))}")
+    print(f"\t{NOCONF} \u22c2 {NOU} -> {len(d[NOCONF].intersection(d[NOU]))}")
+    print("]")
+    print()
 
-def beyondManthan(results: List[Result]):
+def beyondManthan(c: Config, results: List[Result]):
     with open('beyond-manthan.txt') as f:
-        data = f.read().strip().split()
+        bmarksBeyond = f.read().strip().split()
 
     res = defaultdict(lambda : [])
-    for d in data:
+    for b in bmarksBeyond:
         for r in results:
-            if (d in r.benchmark) and r.isSolved and r.isFixedConf() and (not r.config.bool_field(DYNORDER_FIELD)):
-                res[d].append(r)
-    for d,r in res.items():
-        print(d)
-        print(r)
-        print()
+            if (b in r.benchmark) and r.isSolved and (not r.isAllU()):
+                res[b].append(r)
 
-def ratioOutputsSolved(results: List[Result]):
+    print(f'Beyond Manthan (not allUnates): {len(list(res.keys()))} benchmarks')
+    for b in res.keys():
+        print(b)
+    print()
+
+def ratioOutputsSolved(c: Config, results: List[Result]):
     global PLOT_CNT
-    data = separateConfigs(results)
 
-    # we may need per config graph
-    for _, r in data.items():
-        values = defaultdict(list)
-        for res in r:
-            if (res.error != ''):
-                continue
-            tot_oups = int(res.results[TOT_OUTPUTS])
-            fixed_oups = int(res.results[FIXED_OUTPUTS])
-            
-            if tot_oups == 0:
-                continue
-            values[res.isSolved].append((res.benchmark, fixed_oups/tot_oups, fixed_oups, tot_oups, int(res.results[INIT_UN]), int(res.results[FIN_UN])))
-
-        bar1 = values[False]
-        bar1.sort(key=lambda x: x[1])
-        xvalues = [x[0] for x in bar1]
-        y1 = [x[1] for x in bar1]
-
-        print(mean(y1), scipy.stats.gmean(list(filter(lambda x: x != 0, y1))), mean(list(filter(lambda x: x != 0, y1))))
-        print()
+    values = defaultdict(list)
+    for res in results:
+        if (res.error != ''):
+            continue
+        tot_oups = int(res.results[TOT_OUTPUTS])
+        fixed_oups = int(res.results[FIXED_OUTPUTS])
         
-        almostSolved = list(filter(lambda t: 0.9 <= t[1] <= 1.0, bar1))
-        print(f"Almost solved {len(almostSolved)} benchmarks")
-        print(almostSolved)
+        if tot_oups == 0:
+            continue
+        values[res.isSolved].append((res.benchmark, fixed_oups/tot_oups, fixed_oups, tot_oups, int(res.results[INIT_UN]), int(res.results[FIN_UN])))
 
-        plt.figure()
-        plt.bar(xvalues, y1, color='blue', label='Outputs fixed / Non-unate outputs', width=1.0)
-        # plt.bar(xvalues, y2, color='green', label='% total unates', bottom=y1, width=1.0)
-        plt.xticks([])
-        plt.ylabel('Ratio')
-        plt.xlabel('Unsolved benchmarks')
-        plt.legend(loc='upper left')
-        plt.autoscale(enable=True, axis='both', tight=True)
-        plt.tight_layout()
-        plt.savefig(f'graph_{PLOT_CNT}_ratio_outputs.png')
-        PLOT_CNT += 1
+    bar1 = values[False]
 
-def unatePostProcessing(results: List[Result], force_run = False):
+    if (len(bar1) == 0):
+        return
+    bar1.sort(key=lambda x: x[1])
+    xvalues = [x[0] for x in bar1]
+    y1 = [x[1] for x in bar1]
+
+    print(f'Outputs fixed v/s Total outputs ->')
+    print(f'Mean ratio (w 0s) : {mean(y1):.2f}')
+    print(f'Mean ratio (wo 0s) : {mean([_ for _ in y1 if _ != 0]):.2f}')
+    print(f'Geometric mean ratio : {gmean([_ for _ in y1 if _ != 0]):.2f}')
+    print()
+    
+    almostSolved = list(filter(lambda t: 0.9 <= t[1] <= 1.0, bar1))
+    print(f"Almost solved {len(almostSolved)} benchmarks -> \n")
+    for x in almostSolved:
+        print(f'Benchmark : {x[0]}')
+        print(f'Ratio : {x[2]} / {x[3]} = {x[1]:.2f}')
+        print(f'Unates : {x[4]} init, {x[5]} fin')
+        print()
+
+    plt.figure()
+    plt.bar(xvalues, y1, color='blue', label='Outputs fixed / Total outputs', width=1.0)
+    # plt.bar(xvalues, y2, color='green', label='% total unates', bottom=y1, width=1.0)
+    plt.xticks([])
+    plt.ylabel('Ratio')
+    plt.xlabel('Unsolved benchmarks')
+    plt.legend(loc='upper left')
+    plt.autoscale(enable=True, axis='both', tight=True)
+    plt.tight_layout()
+    plt.savefig(f'graph_{PLOT_CNT}_ratio_outputs.png')
+    PLOT_CNT += 1
+
+def unatePostProcessing(c: Config, results: List[Result], file: str, force_run: bool = False):
     global PLOT_CNT
-    data = separateConfigs(results, {UNATE_FIELD: UNATE_FIELD})
+
+    if not c.bool_field(UNATE_FIELD):
+        return
 
     run(["make", "postprocess"])
 
-    for c, r in data.items():
-        # folder
-        folder = getattr(c, OUTFOLDR_FIELD) if (hasattr(c, OUTFOLDR_FIELD)) else f"{sys.argv[1].rsplit('/', 1)[0]}/"
+    folder = getattr(c, OUTFOLDR_FIELD) if (hasattr(c, OUTFOLDR_FIELD)) else f"{file.rsplit('/', 1)[0]}/"
 
-        values = []
-        for res in r:
-            if (res.error != ''):
-                continue
-            unatesPref = f"{folder}/Unates/{res.benchmark.split('/')[-1].rsplit('.', 1)[0]}"
-            pUnatesF, nUnatesF = unatesPref + '.pUnates', unatesPref + '.nUnates'
-
-            if (not os.path.exists(pUnatesF)) or (not os.path.exists(nUnatesF)):
-                continue
-
-            unatesOnlyPref = f"{folder}/UnatesOnly/{res.benchmark.split('/')[-1].rsplit('.', 1)[0]}"
-            pUOnlyF, nUOnlyF = unatesOnlyPref + '.pUnates', unatesOnlyPref + '.nUnates'
-
-            if (force_run) or (not os.path.exists(pUOnlyF)) or (not os.path.exists(nUOnlyF)):
-                oup = check_output(["bin/postprocess", "-b", res.benchmark, "-p", f"{unatesPref}.pUnates", "-n", f"{unatesPref}.nUnates", "--out", folder])
-
-                pu, nu, puOnly, nuOnly = map(int, oup.decode().split())
-            else:
-                def line_count(file):
-                    with open(file) as f:
-                        return len(list(filter(lambda x: x != '', f.readlines())))
-
-                [pu, nu, puOnly, nuOnly] = map(line_count, [pUnatesF, nUnatesF, pUOnlyF, nUOnlyF])
-
-            if (pu+nu == 0):
-                continue
-            values.append((res, (puOnly+nuOnly)/(pu+nu), pu+nu, puOnly+nuOnly))
-
-        if (len(values) == 0):
+    values = []
+    for res in results:
+        if (res.error != ''):
             continue
-        values.sort(key=lambda x: x[1])
+        unatesPref = f"{folder}/Unates/{res.benchmark.split('/')[-1].rsplit('.', 1)[0]}"
+        pUnatesF, nUnatesF = unatesPref + '.pUnates', unatesPref + '.nUnates'
 
-        yvalues = [x[1] for x in values]
-        print(scipy.stats.describe(yvalues))
-        print([(t[0].benchmark, t[1], t[2], t[3]) for t in values if t[1] > 0])
+        if (not os.path.exists(pUnatesF)) or (not os.path.exists(nUnatesF)):
+            continue
 
-        plt.figure()
-        plt.bar(range(len(yvalues)), yvalues, width=1.0)
-        plt.xticks([])
-        plt.ylabel('Ratio')
-        plt.xlabel('Benchmarks')
-        plt.autoscale(enable=True, axis='both', tight=True)
-        plt.tight_layout()
-        plt.savefig(f'graph_{PLOT_CNT}_ratio_unates.png')
-        PLOT_CNT += 1
+        unatesOnlyPref = f"{folder}/UnatesOnly/{res.benchmark.split('/')[-1].rsplit('.', 1)[0]}"
+        pUOnlyF, nUOnlyF = unatesOnlyPref + '.pUnates', unatesOnlyPref + '.nUnates'
+
+        if (force_run) or (not os.path.exists(pUOnlyF)) or (not os.path.exists(nUOnlyF)):
+            oup = check_output(["bin/postprocess", "-b", res.benchmark, "-p", f"{unatesPref}.pUnates", "-n", f"{unatesPref}.nUnates", "--out", folder])
+
+            pu, nu, puOnly, nuOnly = map(int, oup.decode().split())
+        else:
+            def line_count(file):
+                with open(file) as f:
+                    return len(list(filter(lambda x: x != '', f.readlines())))
+
+            [pu, nu, puOnly, nuOnly] = map(line_count, [pUnatesF, nUnatesF, pUOnlyF, nUOnlyF])
+
+        if (pu+nu == 0):
+            continue
+        values.append((res, (puOnly+nuOnly)/(pu+nu), pu+nu, puOnly+nuOnly))
+
+    if (len(values) == 0):
+        return
+
+    values.sort(key=lambda x: x[1])
+
+    yvalues = [x[1] for x in values]
+    # print(describe(yvalues))
+    print('Unates Postprocessing Ratio -> ')
+    for t in values:
+        if (t[1] > 0):
+            print(f'{t[0].benchmark} : {t[3]} / {t[2]} = {t[1]:.2f}')
+
+    plt.figure()
+    plt.bar(range(len(yvalues)), yvalues, label='Unate outputs w unique soln / Total unate outputs', width=1.0)
+    plt.xticks([])
+    plt.ylabel('Ratio')
+    plt.xlabel('Benchmarks')
+    plt.legend(loc='upper left')
+    plt.autoscale(enable=True, axis='both', tight=True)
+    plt.tight_layout()
+    plt.savefig(f'graph_{PLOT_CNT}_ratio_unates.png')
+    PLOT_CNT += 1
 
 for file in sys.argv[1:]:
     with open(file, 'r') as f:
@@ -335,7 +346,12 @@ for file in sys.argv[1:]:
     print(f"{file}")
     print('-'*100 + '\n')
 
-    genericAnalysis(results)
-    beyondManthan(results)
-    ratioOutputsSolved(results)
-    unatePostProcessing(results)
+    genericTotalAnalysis(results)
+    resDict = separateConfigs(results)
+
+    for c, res in resDict.items():
+        print(f"{c} -> {c.hash()}\n")
+        genericAnalysis(c, res, file)
+        beyondManthan(c, res)
+        ratioOutputsSolved(c, res)
+        unatePostProcessing(c, res, file)
