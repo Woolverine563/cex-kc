@@ -120,7 +120,7 @@ struct optionStruct
 	bool unate;
 	int timeout;
 	string benchmark;
-	string outFName;
+	string outFolderPath;
 	string varsOrder;
 	int conflictCheck;
 	int rectifyProc;
@@ -129,6 +129,7 @@ struct optionStruct
 	bool useShannon;
 	bool allowUnivQuantify;
 	bool dynamicOrdering;
+	bool useFastCnf;
 };
 
 struct ConflictCounterEx
@@ -181,6 +182,7 @@ extern vector<int> varsSInv;
 extern vector<int> varsXF, varsXS;
 extern vector<int> varsYF, varsYS; // to be eliminated
 extern vector<int> varsCNF;		   // Aig Node ID to Cnf Var mapping!
+extern vector<int> unates;
 extern vector<int> AigToCNF;
 extern ConflictCounterEx pi;
 extern int numOrigInputs, numX, numY;
@@ -195,6 +197,7 @@ extern vector<vector<int>> k2Trend;
 extern ConflictCounterEx pi;
 extern int it;
 extern double repairTime, rectifyCnfTime, rectifyUnsatCoreTime, conflictCnfTime, satSolvingTime, unateTime, compressTime;
+extern double overallCnfTime;
 
 int CommandExecute(Abc_Frame_t *pAbc, string cmd);
 vector<string> tokenize(const string &p_pcstStr, char delim);
@@ -266,6 +269,8 @@ Cnf_Dat_t *getConflictFormulaCNF(Aig_Man_t *SAig, int idx);
 Cnf_Dat_t *getConflictFormulaCNF2(Aig_Man_t *SAig, int idx);
 lbool solveAndModel(Aig_Man_t *SAig);
 void calcLeastOccurrenceSAig(Aig_Man_t *SAig, int minIdx);
+Cnf_Dat_t *Cnf_Derive_Wrapper(Aig_Man_t *p, int nOutputs);
+void dumpResults(Aig_Man_t* SAig, map<int, string> id2NameF);
 
 template <class T>
 void print(T v)

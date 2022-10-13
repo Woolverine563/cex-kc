@@ -15,6 +15,8 @@ vector<int> varsXF, varsXS;
 vector<int> varsYF, varsYS; // to be eliminated.
 vector<int> varsCNF;		// Aig Node ID to Cnf Var mapping!
 vector<int> AigToCNF;
+
+vector<int> unates;
 ConflictCounterEx pi;
 int numOrigInputs = 0, numX = 0, numY = 0;
 vector<string> varsNameX, varsNameY;
@@ -26,6 +28,7 @@ Cnf_Dat_t *FCnf = NULL;
 chrono_steady_time helper_time_measure_start;
 
 double repairTime, rectifyCnfTime, rectifyUnsatCoreTime, conflictCnfTime, satSolvingTime, unateTime, compressTime;
+double overallCnfTime;
 
 int it = 0;
 int init_unates = 0;
@@ -41,6 +44,8 @@ int main(int argc, char **argv)
 	Cnf_Dat_t *conflict_cnf;
 	int compressFreq = 5;
 	int repaired = 0;
+	bool phase = false;
+	int phaseCount = 0;
 
 	parseOptions(argc, argv);
 
@@ -59,11 +64,12 @@ int main(int argc, char **argv)
 	varsCNF = vector<int>(numX + numY, -1);
 	AigToCNF = vector<int>(numX + numY + 1, -1);
 	conflictSolver = sat_solver_new();
+	unates = vector<int>(numY, -1);
 	///////////////////////////////////////
 	// INITIALIZATION
 	//////////////////////////////////////
 
-	vector<int> unates(numY, -1);
+	// vector<int> unates(numY, -1);
 
 	SAig = NormalToPositive(FAig);
 	Aig_ManStop(FAig);
@@ -89,9 +95,10 @@ int main(int argc, char **argv)
 	}
 
 	FAig = PositiveToNormalWithNeg(SAig);
-	FCnf = Cnf_Derive(FAig, 0);
+	FCnf = Cnf_Derive_Wrapper(FAig, 0);
 	Aig_ManStop(FAig);
 
+	// pi.idx not updated in unates???
 	TIMED(
 		conflictCnfTime,
 		if (options.conflictCheck == 1) {
@@ -159,8 +166,13 @@ int main(int argc, char **argv)
 
 				if (cnt > 0)
 				{
+					if (phase) {
+						phase = false;
+						phaseCount++;
+					}
+
 					FAig = PositiveToNormalWithNeg(SAig);
-					FCnf = Cnf_Derive(FAig, 0);
+					FCnf = Cnf_Derive_Wrapper(FAig, 0);
 					Aig_ManStop(FAig);
 
 					sat_solver_restart(conflictSolver);
@@ -201,8 +213,10 @@ int main(int argc, char **argv)
 
 				if (ans == l_False)
 				{
+					cout << "Conflict Free :" << pi.idx << endl;
 					repaired++;
 					pi.idx++;
+					phase = true;
 
 					if (pi.idx >= numY)
 					{
@@ -244,7 +258,7 @@ int main(int argc, char **argv)
 
 					// 	if (cnt > 0) {
 					// 		FAig = PositiveToNormalWithNeg(SAig);
-					// 		FCnf = Cnf_Derive(FAig, 0);
+					// 		FCnf = Cnf_Derive_Wrapper(FAig, 0);
 					// 		Aig_ManStop(FAig);
 					// 	}
 					// }
@@ -261,9 +275,9 @@ int main(int argc, char **argv)
 					i++;
 					assert(ans != l_Undef);
 
-					#ifdef DEBUG
-						assert(isConflict(SAig, pi.idx));
-					#endif
+#ifdef DEBUG
+					assert(isConflict(SAig, pi.idx));
+#endif
 
 					if (options.useShannon && (Aig_ManObjNum(SAig) >= int(1.75 * begSize)))
 					{
@@ -317,12 +331,14 @@ int main(int argc, char **argv)
 	cout << "Initial formula had : " << initSize << " nodes" << endl;
 	cout << "Final formula has : " << Aig_ManObjNum(SAig) << " nodes" << endl;
 
-	cout << "Unates : " << init_unates << " initially out of " << tot_unates << endl;
+	cout << "Unates : " << init_unates << " initially out of " << tot_unates << " in total " << phaseCount << " phases" << endl;
 
 	cout << "Took " << it << " iterations of algorithm : " << i << " number of counterexamples, " << repaired << " outputs repaired out of non-unate " << numY - tot_unates << " outputs" << endl;
 
 	cout << double(clock() - start) / CLOCKS_PER_SEC << " seconds" << endl;
-	cout << repairTime << " " << conflictCnfTime << " " << satSolvingTime << " " << unateTime << " " << compressTime << " " << rectifyCnfTime << " " << rectifyUnsatCoreTime << endl;
+	cout << repairTime << " " << conflictCnfTime << " " << satSolvingTime << " " << unateTime << " " << compressTime << " " << rectifyCnfTime << " " << rectifyUnsatCoreTime << " " << overallCnfTime << endl;
+
+	dumpResults(SAig, id2NameF);
 
 	// Aig_ManDumpVerilog(SAig, (char*) (options.outFName).c_str());
 	Aig_ManStop(SAig);

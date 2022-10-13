@@ -1,70 +1,75 @@
 import argparse, json
 from subprocess import run, check_output, STDOUT
 from multiprocessing import Pool
-from csv import writer, DictReader
+from csv import writer
 from itertools import product
 from hashlib import md5
-from more_itertools import collapse
 import os
+from util import *
 
-def run_code(kwargs: dict, analyse: bool, analysisdir: str):
+def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
     args = ["bin/main"]
+    D = dict(zip(NON_BOOL_FIELDS, valargs))
 
-    if kwargs.pop('-u', False):
-        args.append("-u")
-    else:
-        args.append("")
+    for (k,v) in zip(BOOL_FIELDS, boolargs):
+        val = "" if not v else k
+        args.append(val)
+        D[k] = val
 
-    if kwargs.pop('-s', False):
-        args.append("-s")
-    else:
-        args.append("")
-
-    if kwargs.pop('-o', False):
-        args.append("-o")
-    else:
-        args.append("")
-
-    for k,v in kwargs.items():
+    for k,v in zip(NON_BOOL_FIELDS, valargs):
         args.append(k)
         args.append(str(v))
 
-    bname = kwargs["-b"]
+    args.extend(["--out", arguments.outdir])
+
+    bname = D[BNAME_FIELD]
+    # default ordering is being used
+
+    hash = md5(' '.join(args).encode()).hexdigest()
+    D[HASH] = hash
 
     try:
-        oup = check_output(args, stderr=STDOUT)
-        hash = md5(' '.join(args).encode()).hexdigest()
+        oup = check_output(args, stderr=STDOUT, timeout=D[TIMEOUT_FIELD] + 60)
+        # Hard timeout of atmost twice
 
-        with open(f'{arguments.outdir}/output-{hash}.txt','wb') as _:
+        os.makedirs(f'{arguments.outdir}/outputs', exist_ok=True)
+        with open(f'{arguments.outdir}/outputs/output-{hash}.txt','wb') as _:
             _.write(oup)
 
         if (analyse):
+            os.makedirs(f'{analysisdir}', exist_ok=True)
+            gmon = f'{analysisdir}/gmon.{hash}.out'
+            run(["mv","gmon.out",gmon])
             with open(f'{analysisdir}/analysis-{hash}.txt','w') as _:
-                run(["gprof","bin/main","gmon.out"],stdout=_)
+                run(["gprof","bin/main",gmon],stdout=_)
 
         lines = oup.splitlines()[-6:]
 
         initial = lines[0].split(b':')[1].strip().split()[0].decode()
         final = lines[1].split(b':')[1].strip().split()[0].decode()
         init_u = lines[2].split(b':')[1].strip().split()[0].decode()
-        tot_u = lines[2].split(b':')[1].strip().split()[-1].decode()
+        tot_u = lines[2].split(b':')[1].strip().split()[4].decode()
+        phases = lines[2].split(b':')[1].strip().split()[-2].decode()
         iters = lines[3].split()[1].decode()
         counterexs = lines[3].split(b':')[1].strip().split()[0].decode()
         idx = lines[3].split(b', ')[1].strip().split()[0].decode()
         numY = lines[3].split()[-2].decode()
         time = lines[4].strip().split()[0].decode()
 
-        return [bname, initial, final, init_u, tot_u, iters, counterexs, idx, numY, time] + [x.decode() for x in lines[5].strip().split()] + [hash] + args[1:]
+        return D, [initial, final, init_u, tot_u, phases, iters, counterexs, idx, numY, time] + [x.decode() for x in lines[5].strip().split()] + [""], False
+        # empty error field
 
     except Exception as e:
+        # assumption that mostly no failures        
         print(e, args)
-        return [bname]
+        return D, [""] * (len(RESULTS)-1) + [str(e)], True
 
 parser = argparse.ArgumentParser()
 
 commit = check_output(["git","rev-parse","--short=6","HEAD"]).strip().decode()
 
-parser.add_argument("-timeout", type=int, default=3600)
+parser.add_argument("-timeout", type=lambda s: [int(item) for item in s.split(',')], default=[3600])
+parser.add_argument("-unatetimeout", type=lambda s: [int(item) for item in s.split(',')], default=[])
 parser.add_argument("-analyse", action='store_true')
 parser.add_argument("file", type=str)
 parser.add_argument("-outdir", type=str, default=f'{commit}/results')
@@ -74,20 +79,20 @@ arguments = parser.parse_args()
 
 os.makedirs(arguments.outdir, exist_ok=True)
 
-f = open(f'{arguments.outdir}/runs.csv', 'w')
-f2 = open(f'{arguments.outdir}/allUnates', 'w')
-f3 = open(f'{arguments.outdir}/noConflictsWithUnates', 'w')
-f4 = open(f'{arguments.outdir}/noConflicts', 'w')
-f5 = open(f'{arguments.outdir}/noUnates', 'w')
-f6 = open(f'{arguments.outdir}/others', 'w')
-f7 = open(f'{arguments.outdir}/error', 'w')
+CSV = open(f'{arguments.outdir}/runs.csv', 'w')
 
-wr = writer(f)
+# filedict = {
+# ALLUNATES   : open(f'{arguments.outdir}/{ALLUNATES}', 'w'),
+# NOCONFU     : open(f'{arguments.outdir}/{NOCONFU}', 'w'),
+# NOCONF      : open(f'{arguments.outdir}/{NOCONF}', 'w'),
+# NOU         : open(f'{arguments.outdir}/{NOU}', 'w'),
+# OTHER       : open(f'{arguments.outdir}/{OTHER}', 'w'),
+# ERROR       : open(f'{arguments.outdir}/{ERROR}', 'w'),
+# }
 
-fields = ["Benchmark", "Initial size", "Final size", "Initial unates", "Final unates", "Number of iterations", "Number of cex", "Outputs fixed", "Total outputs", "Time taken", "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime", "compressTime", "rectifyCnfTime", "rectifyUnsatCoreTime"]
+wr = writer(CSV)
 
-# wr.writerow(["Benchmark", "Input NNF size", "Time", "SDD size"])
-wr.writerow(fields)
+wr.writerow(HEADER)
         
 if (not arguments.nocompile):
     os.system("make clean")
@@ -104,13 +109,16 @@ if arguments.analyse:
 depth = [20]
 rectify = [3]
 conflict = [2]
-unate = [True, False]
+unate = [True]
 shannon = [False]
-dynamic = [False, True]
+dynamic = [False]
+fastcnf = [False]
+timeout = arguments.timeout
+unatetimeout = arguments.timeout if (len(arguments.unatetimeout) == 0) else arguments.unatetimeout
 benchmarks = []
 
-with open(arguments.file, 'r') as f:
-    l = f.readlines()
+with open(arguments.file, 'r') as runs:
+    l = runs.readlines()
     for i in range(len(l)):
         b_name = l[i].strip()
 
@@ -121,49 +129,35 @@ json_res = []
 
 v = list(product(rectify, depth)) # + [("1", "0")]
 
-for name, c, (r, d), u, s, dyn in product(benchmarks, conflict, v, unate, shannon, dynamic):
+for name, c, (r, d), u, s, dyn, fc, t, ut in product(benchmarks, conflict, v, unate, shannon, dynamic, fastcnf, timeout, unatetimeout):
         
     path, file = name.rsplit('/', 1)
     order = f"{path}/OrderFiles/{file.rsplit('.', 1)[0]}_varstoelim.txt"
 
-    arg = {"-b": name, "-v": order, "-c": c, "-r": r, "-d": d, "-t": arguments.timeout, "-u": u, "-s": s, "-o": dyn, "--unateTimeout": arguments.timeout}
-    runs.append((arg, arguments.analyse, arguments.analysisdir))
+    bool_arg = [u,s,dyn,fc]
+    arg = [name, order, c, r, d, t, ut]
+    runs.append((bool_arg, arg, arguments.analyse, arguments.analysisdir))
 
-pool = Pool(processes=(os.cpu_count()*3)//4) # 2 cores free, should be fine
+pool = Pool() # processes=(os.cpu_count()*3)//4) # 2 cores free, should be fine
 
 pool = pool.starmap_async(run_code, runs)
 pool.wait()
 res = pool.get()
 
-for row in res:
-    if (len(row) > 1): # no error
-        bname = row[0]
-        wr.writerow(row)
+for (D, outputs, error) in res:
+    row, bname, hash, d, d_all = process(D, outputs, error)
+    wr.writerow(row)
 
-        if (int(row[8]) == 0):
-            f2.write(bname+"\n")
-        elif (int(row[7]) == int(row[8])) and (int(row[6]) == 0):
-            if ("-u" in list(collapse(row))):
-                f3.write(bname+"\n")
-            else:
-                f4.write(bname+"\n")
-        elif (int(row[4]) == 0) and ("-u" in row):
-            f5.write(bname+"\n")
-        else:
-            f6.write(bname+"\n")
-    else:
-        f7.write(row[0]+"\n")
+    # for (k, v) in d.items():
+    #     assert v
+    #     filedict[k].write(f'{bname},{hash}\n')
 
-    json_res.append(dict(zip(fields, row)))
+    json_res.append(d_all)
     
+CSV.close()
 
-f.close()
-f2.close()
-f3.close()
-f4.close()
-f5.close()
-f6.close()
-f7.close()
+# for v in filedict.values():
+#     v.close()
 
 with open(f'{arguments.outdir}/results.json','w') as file:
     json.dump(json_res, file)

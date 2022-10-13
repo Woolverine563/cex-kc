@@ -1,7 +1,7 @@
 #include "helper.h"
 // #include "formula.h"
 #include "nnf.h"
-#include <boost/functional/hash.hpp>
+// #include <boost/functional/hash.hpp>
 
 using namespace ABC_NAMESPACE;
 
@@ -32,7 +32,7 @@ std::ostream &operator<<(std::ostream &os, const ConflictCounterEx &cce)
 void parseOptions(int argc, char *argv[])
 {
 	optParser.positional_help("");
-	optParser.add_options()("b, benchmark", "Specify the benchmark (required)", cxxopts::value<string>(options.benchmark), "FILE")("v, varsOrder", "Specify the variable ordering", cxxopts::value<string>(options.varsOrder), "FILE")("c, conflictCheck", "Specifies the conflict check method", cxxopts::value<int>(options.conflictCheck)->default_value("2"))("r, rectifyProc", "Specifies the rectification procedure employed", cxxopts::value<int>(options.rectifyProc)->default_value("3"))("d, depth", "Specifies the depth of the cut nodes", cxxopts::value<int>(options.depth)->default_value("10"))("t, timeOut", "Specifies the timeout used", cxxopts::value<int>(options.timeout)->default_value("3600"))("a, allIndices", "Specifies whether all indices are fixed for a counter-example at once", cxxopts::value<bool>(options.fixAllIndices))("u, unate", "Specifies whether to use unates or not", cxxopts::value<bool>(options.unate))("s, shannon", "Use shannon expansion", cxxopts::value<bool>(options.useShannon))("unateTimeout", "Timeout for fixed-point unate computation", cxxopts::value<int>(options.unateTimeout)->default_value("600"))("q, allowUnivQuantify", "Allows universal quantification in cut choices", cxxopts::value<bool>(options.allowUnivQuantify))("o, dynamicOrdering", "Use dynamic ordering", cxxopts::value<bool>(options.dynamicOrdering))("h, help", "Print this help");
+	optParser.add_options()("b, benchmark", "Specify the benchmark (required)", cxxopts::value<string>(options.benchmark), "FILE")("v, varsOrder", "Specify the variable ordering", cxxopts::value<string>(options.varsOrder), "FILE")("out", "Out folder path", cxxopts::value<string>(options.outFolderPath), "PATH")("c, conflictCheck", "Specifies the conflict check method", cxxopts::value<int>(options.conflictCheck)->default_value("2"))("r, rectifyProc", "Specifies the rectification procedure employed", cxxopts::value<int>(options.rectifyProc)->default_value("3"))("d, depth", "Specifies the depth of the cut nodes", cxxopts::value<int>(options.depth)->default_value("10"))("t, timeOut", "Specifies the timeout used", cxxopts::value<int>(options.timeout)->default_value("3600"))("a, allIndices", "Specifies whether all indices are fixed for a counter-example at once", cxxopts::value<bool>(options.fixAllIndices))("u, unate", "Specifies whether to use unates or not", cxxopts::value<bool>(options.unate))("s, shannon", "Use shannon expansion", cxxopts::value<bool>(options.useShannon))("unateTimeout", "Timeout for fixed-point unate computation", cxxopts::value<int>(options.unateTimeout)->default_value("600"))("q, allowUnivQuantify", "Allows universal quantification in cut choices", cxxopts::value<bool>(options.allowUnivQuantify))("o, dynamicOrdering", "Use dynamic ordering", cxxopts::value<bool>(options.dynamicOrdering))("f, useFastCnf", "Use Fast CNF", cxxopts::value<bool>(options.useFastCnf))("h, help", "Print this help");
 
 	// optParser.parse_positional(vector<string>({"benchmark", "varsOrder"}));
 	auto result = optParser.parse(argc, argv);
@@ -48,7 +48,25 @@ void parseOptions(int argc, char *argv[])
 		cerr << endl
 			 << "Error: Benchmark not specified" << endl
 			 << endl;
-		cout << optParser.help({"", "Group"}) << std::endl;
+		cout << optParser.help({"", "Group"}) << endl;
+		exit(0);
+	}
+
+	if (!result.count("varsOrder"))
+	{
+		cerr << endl
+			 << "Error: Ordering not specified" << endl
+			 << endl;
+		cout << optParser.help({"", "Group"}) << endl;
+		exit(0);
+	}
+
+	if (!result.count("out"))
+	{
+		cerr << endl
+			 << "Error: Output Folder Path not specified" << endl
+			 << endl;
+		cout << optParser.help({"", "Group"}) << endl;
 		exit(0);
 	}
 
@@ -1250,7 +1268,7 @@ int checkUnateSyntacticAll(Aig_Man_t *FAig, vector<int> &unate, int beginIdx)
 			}
 		}
 	}
-	cout << "Found " << numUnate << " unates" << endl;
+	cout << "Found " << numUnate << " syntactic unates" << endl;
 	return numUnate;
 }
 
@@ -1271,7 +1289,7 @@ int checkUnateSemAll(Aig_Man_t *FAig, vector<int> &unate, int beginIdx)
 
 	// cout << " Preparing for semantic unate checks " << endl;
 	sat_solver *pSat = sat_solver_new();
-	Cnf_Dat_t *SCnf = Cnf_Derive(FAig, Aig_ManCoNum(FAig));
+	Cnf_Dat_t *SCnf = Cnf_Derive_Wrapper(FAig, Aig_ManCoNum(FAig));
 	addCnfToSolver(pSat, SCnf);
 	int numCnfVars = SCnf->nVars;
 	Cnf_Dat_t *SCnf_copy = Cnf_DataDup(SCnf);
@@ -1389,7 +1407,7 @@ int checkUnateSemAll(Aig_Man_t *FAig, vector<int> &unate, int beginIdx)
 				}
 			}
 		}
-		cout << "Found " << numUnate << " unates" << endl;
+		cout << "Found " << numUnate << " semantic unates" << endl;
 		totalNumUnate += numUnate;
 
 		auto unate_end = std::chrono::steady_clock::now();
@@ -1942,7 +1960,7 @@ Aig_Obj_t *coreAndIntersect(Aig_Man_t *SAig, Aig_Man_t *Aig1)
 {
 	auto Cnf1 = Cnf_Derive(Aig1, 0);
 
-	// 
+	//
 
 	auto vec = ABC_ALLOC(int *, FCnf->nClauses + 1);
 	vec[0] = ABC_ALLOC(int, FCnf->nLiterals);
@@ -2691,12 +2709,12 @@ Aig_Obj_t *Rectify3(Aig_Man_t *SAig, int k, int depth, bool allowUnivQuantify)
 		invMap[Cnf->pVarNums[Aig_ObjId(Aig_ObjFanin0(Aig_ManCo(Fnew, i + 1)))]] = i;
 	}
 
-	TIMED(rectifyUnsatCoreTime, 
+	TIMED(
+		rectifyUnsatCoreTime,
 		auto solver = sat_solver_new();
 		sat_solver_store_alloc(solver);
 
-		for (int i = 0; i < Cnf->nClauses; i++)
-		{
+		for (int i = 0; i < Cnf->nClauses; i++) {
 			sat_solver_addclause(solver, Cnf->pClauses[i], Cnf->pClauses[i + 1]);
 		}
 
@@ -2708,8 +2726,7 @@ Aig_Obj_t *Rectify3(Aig_Man_t *SAig, int k, int depth, bool allowUnivQuantify)
 
 		auto pSatCnf = (Sto_Man_t *)sat_solver_store_release(solver);
 		auto proof = Intp_ManAlloc();
-		auto core = (Vec_Int_t *)Intp_ManUnsatCore(proof, pSatCnf, 0, 0);
-	)
+		auto core = (Vec_Int_t *)Intp_ManUnsatCore(proof, pSatCnf, 0, 0);)
 
 	sort(core->pArray, core->pArray + core->nSize);
 
@@ -2840,7 +2857,7 @@ void repair(Aig_Man_t *SAig)
 		patchCo(AigNew, pObj);
 		assert(Aig_ManCheck(AigNew));
 
-		Cnf_Dat_t *Cnf = Cnf_Derive(AigNew, 0);
+		Cnf_Dat_t *Cnf = Cnf_Derive_Wrapper(AigNew, 0);
 		int maxVar = sat_solver_nvars(conflictSolver);
 		unordered_map<int, int> NewCNFToAig;
 
@@ -3123,7 +3140,7 @@ Cnf_Dat_t *getErrorFormulaCNF(Aig_Man_t *SAig)
 	// printAig(Formula);
 
 	assert(Aig_ManCoNum(Formula) == 1);
-	auto err_cnf = Cnf_Derive(Formula, 0);
+	auto err_cnf = Cnf_Derive_Wrapper(Formula, 0);
 
 	Aig_ManStop(Formula);
 	return err_cnf;
@@ -3196,7 +3213,7 @@ Cnf_Dat_t *getConflictFormulaCNF(Aig_Man_t *SAig, int idx)
 
 	// formula = compressAig(formula);
 	Aig_ManCleanup(formula);
-	auto ans = Cnf_Derive(formula, 0);
+	auto ans = Cnf_Derive_Wrapper(formula, 0);
 	Aig_ManStop(formula);
 
 	return ans;
@@ -3295,7 +3312,7 @@ Cnf_Dat_t *getConflictFormulaCNF2(Aig_Man_t *SAig, int idx)
 
 	// formula = compressAig(formula);
 	Aig_ManCleanup(formula);
-	auto ans = Cnf_Derive(formula, 0);
+	auto ans = Cnf_Derive_Wrapper(formula, 0);
 	Aig_ManStop(formula);
 
 	return ans;
@@ -3383,4 +3400,151 @@ void calcLeastOccurrenceSAig(Aig_Man_t *SAig, int minIdx)
 	swap(varsYS[minIdx + it - ranks.begin()], varsYS[minIdx]);
 	swap(varsYF[minIdx + it - ranks.begin()], varsYF[minIdx]);
 	swap(varsCNF[numX + minIdx + it - ranks.begin()], varsCNF[numX + minIdx]);
+	swap(unates[minIdx + it - ranks.begin()], unates[minIdx]);
+}
+
+Cnf_Dat_t *Cnf_DeriveFast_Wrapper(Aig_Man_t *p, int nOutputs)
+{
+	auto pCnf = Cnf_DeriveFast(p, nOutputs);
+
+	// 2 passes, one to determine memory to alloc, another to copy things
+	// not using any dynamic data structures
+	int *beg, *end, i;
+	unordered_set<int> excludeClauses;
+	unordered_map<int, unordered_set<int *>> excludeLits;
+
+	int newClauses = pCnf->nClauses;
+	int newLiterals = pCnf->nLiterals;
+
+	Cnf_CnfForClause(pCnf, beg, end, i)
+	{
+		bool top = false;
+		int redCnt = 0;
+		unordered_map<int, bool> presentVars; // map from vars to their signs
+
+		for (auto ptr = beg; ptr != end; ptr++)
+		{
+			auto var = Lit(*ptr).getVar();
+			auto sign = Lit(*ptr).isCompl();
+			auto it = presentVars.find(var);
+			if (it != presentVars.end())
+			{
+				if (it->second == sign)
+				{
+					redCnt++;
+					excludeLits[i].insert(ptr);
+				}
+				else
+				{
+					top = true;
+					excludeClauses.insert(i);
+					break;
+				}
+			}
+			else
+			{
+				presentVars[var] = sign;
+			}
+		}
+
+		if (top)
+		{
+			newClauses--;
+			newLiterals -= (end - beg);
+		}
+		else
+		{
+			newLiterals -= (redCnt);
+		}
+	}
+
+	auto v = ABC_ALLOC(int *, newClauses + 1);
+	v[0] = ABC_ALLOC(int, newLiterals);
+	int j = 0;
+
+	Cnf_CnfForClause(pCnf, beg, end, i)
+	{
+		if (excludeClauses.count(i) == 0)
+		{
+			auto litsSet = excludeLits[i];
+			vector<int> lits;
+			for (auto ptr = beg; ptr != end; ptr++)
+			{
+				if (litsSet.count(ptr) == 0)
+				{
+					lits.push_back(*ptr);
+				}
+			}
+			memcpy(v[j], lits.data(), sizeof(int) * lits.size());
+			v[j + 1] = v[j] + lits.size();
+			j++;
+		}
+	}
+	pCnf->nClauses = newClauses;
+	pCnf->nLiterals = newLiterals;
+	free(pCnf->pClauses[0]);
+	free(pCnf->pClauses);
+	pCnf->pClauses = v;
+
+	// pVarNums doesn't need to be updated
+
+	// TODO : put debug assertion
+
+	return pCnf;
+}
+
+Cnf_Dat_t *Cnf_Derive_Wrapper(Aig_Man_t *p, int nOutputs)
+{
+	Cnf_Dat_t *ans;
+
+	TIMED(
+		overallCnfTime,
+		if (options.useFastCnf) {
+			ans = Cnf_DeriveFast_Wrapper(p, nOutputs);
+		} else {
+			ans = Cnf_Derive(p, nOutputs);
+		})
+	return ans;
+}
+
+void dumpResults(Aig_Man_t* SAig, map<int, string> id2NameF) {
+	// outFolderPath is the top level path, ends with a / always
+	auto unatesFile = options.outFolderPath + "/Unates/" + getFileName(options.benchmark);
+	auto pUnates = ofstream(unatesFile + ".pUnates"), nUnates = ofstream(unatesFile + ".nUnates");
+
+	for (int i = 0; i < numY; i++) {
+		if (unates[i] == 0) {
+			nUnates << id2NameF[Aig_ManCi(SAig, varsYS[i])->Id] << endl;
+		}
+		else if (unates[i] == 1) {
+			pUnates << id2NameF[Aig_ManCi(SAig, varsYS[i])->Id] << endl;
+		}
+	}
+
+	pUnates.close();
+	nUnates.close();
+
+	auto orderingFile = ofstream(options.outFolderPath + "/OrderFiles/" + getFileName(options.varsOrder) + ".final.txt");
+	
+	for (int i = 0; i < numY; i++) {
+		orderingFile << id2NameF[Aig_ManCi(SAig, varsYS[i])->Id] << endl;
+	}
+	orderingFile.close();
+
+	auto verilogPath = options.outFolderPath + "/Verilogs/" + getFileName(options.benchmark) + ".result.v";
+
+	Aig_Obj_t* pObj;
+	int i;
+	Aig_ManForEachCi(SAig, pObj, i) {
+		
+	}
+
+	Aig_ManDumpVerilog(SAig, verilogPath.data());
+
+	// auto aigPath = options.outFolderPath + "/Aigs/" + getFileName(options.benchmark) + ".result.aig";
+
+	// auto vPoNames = Vec_PtrAlloc(2);
+	// Vec_PtrPush(vPoNames, "")
+
+	// Aig_ManDumpBlif(SAig, aigPath, )
 }
