@@ -76,10 +76,7 @@ int main(int argc, char **argv)
 	SAig = compressAig(SAig);
 	stoSAig = Aig_ManDupSimpleDfs(SAig);
 
-#ifdef DEBUG
 	auto initFAig = PositiveToNormal(SAig);
-#endif
-
 
 	int initSize = Aig_ManObjNum(SAig);
 
@@ -128,6 +125,7 @@ int main(int argc, char **argv)
 		Cnf_DataFree(conflict_cnf);
 
 		int begSize = Aig_ManObjNum(SAig);
+		Aig_ManStop(stoSAig);
 		stoSAig = Aig_ManDupSimpleDfs(SAig);
 
 		if (options.conflictCheck == 0)
@@ -332,20 +330,6 @@ int main(int argc, char **argv)
 
 	}
 
-#ifdef DEBUG
-	auto finalFAig = PositiveToNormal(SAig);
-
-	auto miter = Aig_ManCreateMiter(initFAig, finalFAig, 0);
-	auto Ntk = Abc_NtkFromAigPhase(miter);
-	auto out = Abc_NtkMiterSat(Ntk, 0, 0, 0, NULL, NULL);
-	assert(out == 1);
-
-	Aig_ManStop(initFAig);
-	Aig_ManStop(finalFAig);
-	Aig_ManStop(miter);
-	Abc_NtkDelete(Ntk);
-#endif
-
 	cout << "DONE!" << endl;
 
 	assert(Aig_ManCheck(SAig));
@@ -361,6 +345,19 @@ int main(int argc, char **argv)
 
 	cout << double(clock() - start) / CLOCKS_PER_SEC << " seconds" << endl;
 	cout << repairTime << " " << conflictCnfTime << " " << satSolvingTime << " " << unateTime << " " << compressTime << " " << rectifyCnfTime << " " << rectifyUnsatCoreTime << " " << overallCnfTime << endl;
+
+	// final debug checks to make sure both aig are equivalent
+	auto finalFAig = PositiveToNormal(SAig);
+
+	auto miter = Aig_ManCreateMiter(initFAig, finalFAig, 0);
+	auto Ntk = Abc_NtkFromAigPhase(miter);
+	auto out = Abc_NtkMiterSat(Ntk, 0, 0, 0, NULL, NULL);
+	assert(out == 1);
+
+	Abc_NtkDelete(Ntk);
+	Aig_ManStop(miter);
+	Aig_ManStop(initFAig);
+	Aig_ManStop(finalFAig);
 
 	dumpResults(SAig, id2NameF);
 

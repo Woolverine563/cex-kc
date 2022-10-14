@@ -14,3 +14,7 @@ data_zips/
 analysis.txt
 __pycache__/
 */output
+Unates/
+UnatesOnly/
+Verilogs/
+OrderFiles/

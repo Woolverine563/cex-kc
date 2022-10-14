@@ -2828,7 +2828,6 @@ void repair(Aig_Man_t *SAig)
 		cout << "rectify : " << it << " counter : " << cnt << " - index : " << k << endl;
 #ifdef DEBUG
 		assert(k < numY);
-		Aig_Man_t *FAig = PositiveToNormal(SAig);
 		assert(Aig_IsPositive(SAig));
 		assert(isConflict(SAig, k));
 #endif
@@ -2902,16 +2901,6 @@ void repair(Aig_Man_t *SAig)
 #ifdef DEBUG
 		assert(Aig_IsPositive(SAig));
 		assert(!isConflict(SAig, k));
-		Aig_Man_t *FAig2 = PositiveToNormal(SAig);
-		auto miter = Aig_ManCreateMiter(FAig, FAig2, 0);
-		auto Ntk = Abc_NtkFromAigPhase(miter);
-		auto out = Abc_NtkMiterSat(Ntk, 0, 0, 0, NULL, NULL);
-		assert(out == 1);
-
-		Aig_ManStop(FAig);
-		Aig_ManStop(FAig2);
-		Aig_ManStop(miter);
-		Abc_NtkDelete(Ntk);
 #endif
 
 		cnt += 1;
