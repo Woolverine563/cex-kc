@@ -1265,6 +1265,7 @@ int checkUnateSyntacticAll(Aig_Man_t *FAig, vector<int> &unate, int beginIdx)
 			if (unate[i] != -1)
 			{
 				numUnate++;
+				moveToBeginning(i);
 			}
 		}
 	}
@@ -1385,6 +1386,7 @@ int checkUnateSemAll(Aig_Man_t *FAig, vector<int> &unate, int beginIdx)
 					addVarToSolver(pSat, SCnf->pVarNums[varsYF[i] + 1], 1);
 					addVarToSolver(pSat, SCnf_copy->pVarNums[varsYF[i] + 1], 1);
 					numUnate++;
+					moveToBeginning(i);
 				}
 			}
 			if (unate[i] == -1)
@@ -1404,6 +1406,7 @@ int checkUnateSemAll(Aig_Man_t *FAig, vector<int> &unate, int beginIdx)
 					addVarToSolver(pSat, SCnf->pVarNums[varsYF[i] + 1], 0);
 					addVarToSolver(pSat, SCnf_copy->pVarNums[varsYF[i] + 1], 0);
 					numUnate++;
+					moveToBeginning(i);
 				}
 			}
 		}
@@ -2647,18 +2650,24 @@ Aig_Obj_t *Rectify3(Aig_Man_t *SAig, int k, int depth, bool allowUnivQuantify)
 	vector<int> vars;
 	vector<Aig_Obj_t *> funcs;
 
-	for (int i = 0; i < k; i++)
+	for (int i = 0; i < numY; i++)
 	{
-		vars.push_back(varsYS[i]);
-		funcs.push_back(Aig_ManConst1(F));
-		vars.push_back(varsYS[i] + numOrigInputs);
-		funcs.push_back(Aig_ManConst1(F));
-	}
-
-	for (int i = k + 1; i < numY; i++)
-	{
-		vars.push_back(varsYS[i] + numOrigInputs);
-		funcs.push_back(Aig_Not(Aig_ManCi(F, varsYS[i])));
+		if (unates[i] != -1) {
+			vars.push_back(varsYS[i]);
+			funcs.push_back(Aig_NotCond(Aig_ManConst0(F), unates[i]));
+			vars.push_back(varsYS[i] + numOrigInputs);
+			funcs.push_back(Aig_NotCond(Aig_ManConst1(F), unates[i]));
+		}
+		else if (i < k) {
+			vars.push_back(varsYS[i]);
+			funcs.push_back(Aig_ManConst1(F));
+			vars.push_back(varsYS[i] + numOrigInputs);
+			funcs.push_back(Aig_ManConst1(F));
+		}
+		else if (i > k) {
+			vars.push_back(varsYS[i] + numOrigInputs);
+			funcs.push_back(Aig_Not(Aig_ManCi(F, varsYS[i])));
+		}
 	}
 
 	pObj = Aig_ComposeVec(F, Aig_ManCo(F, 0)->pFanin0, funcs, vars);
@@ -3155,7 +3164,13 @@ Cnf_Dat_t *getConflictFormulaCNF(Aig_Man_t *SAig, int idx)
 
 	for (int i = 0; i < numY; i++)
 	{
-		if (i < idx)
+		if (unates[i] != -1) {
+			vars.push_back(varsYS[i]);
+			funcs.push_back(Aig_NotCond(Aig_ManConst0(formula), unates[i]));
+			vars.push_back(varsYS[i] + numOrigInputs);
+			funcs.push_back(Aig_NotCond(Aig_ManConst1(formula), unates[i]));
+		}
+		else if (i < idx)
 		{
 			vars.push_back(varsYS[i]);
 			funcs.push_back(Aig_ManConst1(formula));
@@ -3255,7 +3270,13 @@ Cnf_Dat_t *getConflictFormulaCNF2(Aig_Man_t *SAig, int idx)
 
 	for (int i = 0; i < numY; i++)
 	{
-		if (i < idx)
+		if (unates[i] != -1) {
+			vars.push_back(varsYS[i]);
+			funcs.push_back(Aig_NotCond(Aig_ManConst0(formula), unates[i]));
+			vars.push_back(varsYS[i] + numOrigInputs);
+			funcs.push_back(Aig_NotCond(Aig_ManConst1(formula), unates[i]));
+		}
+		else if (i < idx)
 		{
 			vars.push_back(varsYS[i]);
 			funcs.push_back(Aig_ManConst1(formula));
@@ -3547,4 +3568,39 @@ void dumpResults(Aig_Man_t* SAig, map<int, string> id2NameF) {
 	// Vec_PtrPush(vPoNames, "")
 
 	// Aig_ManDumpBlif(SAig, aigPath, )
+}
+
+void moveToBeginning(int y) {
+	// am I worried about the rest of the ordering? Ofcourse!
+	// indices
+	int y1 = pi.idx, y2 = y;
+	assert(y1 <= y2);
+	int temp;
+
+	temp = varsYS[y2];
+	for (int i = y2; i > y1; i--) {
+		varsYS[i] = varsYS[i-1];
+	}
+	varsYS[y1] = temp;
+
+	temp = varsYF[y2];
+	for (int i = y2; i > y1; i--) {
+		varsYF[i] = varsYF[i-1];
+	}
+	varsYF[y1] = temp;
+
+	temp = varsCNF[y2 + numX];
+	for (int i = y2; i > y1; i--) {
+		varsCNF[i + numX] = varsCNF[i + numX - 1];
+	}
+	varsCNF[y1 + numX] = temp;
+
+	temp = unates[y2];
+	for (int i = y2; i > y1; i--) {
+		unates[i] = unates[i-1];
+	}
+	unates[y1] = temp;
+
+	// how to update pi.idx?
+	pi.idx++;
 }

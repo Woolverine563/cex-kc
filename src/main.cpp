@@ -13,7 +13,7 @@ using namespace std;
 vector<int> varsSInv;
 vector<int> varsXF, varsXS;
 vector<int> varsYF, varsYS; // to be eliminated.
-vector<int> varsCNF;		// Aig Node ID to Cnf Var mapping!
+vector<int> varsCNF;		// Aig Ci ID to Cnf Var mapping!
 vector<int> AigToCNF;
 
 vector<int> unates;
@@ -74,6 +74,12 @@ int main(int argc, char **argv)
 	SAig = NormalToPositive(FAig);
 	Aig_ManStop(FAig);
 	SAig = compressAig(SAig);
+	stoSAig = Aig_ManDupSimpleDfs(SAig);
+
+#ifdef DEBUG
+	auto initFAig = PositiveToNormal(SAig);
+#endif
+
 
 	int initSize = Aig_ManObjNum(SAig);
 
@@ -91,7 +97,7 @@ int main(int argc, char **argv)
 		TIMED(unateTime, int cnt = checkUnate(SAig, unates, pi.idx);
 			  init_unates += cnt;
 			  tot_unates += cnt;
-			  setUnatesSaig(SAig, unates);)
+			)
 	}
 
 	FAig = PositiveToNormalWithNeg(SAig);
@@ -99,169 +105,107 @@ int main(int argc, char **argv)
 	Aig_ManStop(FAig);
 
 	// pi.idx not updated in unates???
-	TIMED(
-		conflictCnfTime,
-		if (options.conflictCheck == 1) {
-			conflict_cnf = getConflictFormulaCNF(SAig, pi.idx);
-		} else {
-			conflict_cnf = getConflictFormulaCNF2(SAig, pi.idx);
-			// this is the newer conflict formula
-		})
 
-	alreadyFalse = !addCnfToSolver(conflictSolver, conflict_cnf);
-	for (int i = 0; i < numX; i++)
-	{
-		varsCNF[i] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))];
-	}
-	for (int i = 0; i < numY; i++)
-	{
-		varsCNF[i + numX] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))];
-	}
-	Cnf_DataFree(conflict_cnf);
+	if (pi.idx < numY) {
+		TIMED(
+			conflictCnfTime,
+			if (options.conflictCheck == 1) {
+				conflict_cnf = getConflictFormulaCNF(SAig, pi.idx);
+			} else {
+				conflict_cnf = getConflictFormulaCNF2(SAig, pi.idx);
+				// this is the newer conflict formula
+			})
 
-	int begSize = Aig_ManObjNum(SAig);
-	stoSAig = Aig_ManDupSimpleDfs(SAig);
-
-	if (options.conflictCheck == 0)
-	{
-		assert(false);
-		while (true)
+		alreadyFalse = !addCnfToSolver(conflictSolver, conflict_cnf);
+		for (int i = 0; i < numX; i++)
 		{
-			Cnf_Dat_t *err_cnf = getErrorFormulaCNF(SAig);
-			auto ans = solveAndModel(SAig);
-			if (ans == l_False)
-			{
-				break;
-			}
-			assert(ans != l_Undef);
-			i += 1;
-
-			repair(SAig);
-
-			if (it % 100 == 0)
-			{
-				SAig = compressAig(SAig);
-			}
-			Aig_ManCleanup(SAig);
+			varsCNF[i] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))];
 		}
-	}
-	else
-	{
-		while ((pi.idx < numY) && ((clock() - start) / CLOCKS_PER_SEC <= options.timeout))
+		for (int i = 0; i < numY; i++)
 		{
+			varsCNF[i + numX] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))];
+		}
+		Cnf_DataFree(conflict_cnf);
 
-			// disabling unates for now with new conflict formula!
-			if (options.unate && (unates[pi.idx] != -1))
+		int begSize = Aig_ManObjNum(SAig);
+		stoSAig = Aig_ManDupSimpleDfs(SAig);
+
+		if (options.conflictCheck == 0)
+		{
+			assert(false);
+			while (true)
 			{
-				pi.idx++;
-				if (options.dynamicOrdering)
-				{
-					calcLeastOccurrenceSAig(SAig, pi.idx);
-				}
-
-				int cnt = checkUnate(SAig, unates, pi.idx);
-				tot_unates += cnt;
-				setUnatesSaig(SAig, unates);
-				Aig_ManCleanup(SAig);
-
-				if (cnt > 0)
-				{
-					if (phase) {
-						phase = false;
-						phaseCount++;
-					}
-
-					FAig = PositiveToNormalWithNeg(SAig);
-					FCnf = Cnf_Derive_Wrapper(FAig, 0);
-					Aig_ManStop(FAig);
-
-					sat_solver_restart(conflictSolver);
-
-					TIMED(
-						conflictCnfTime,
-						if (options.conflictCheck == 1) {
-							conflict_cnf = getConflictFormulaCNF(SAig, pi.idx);
-						} else {
-							conflict_cnf = getConflictFormulaCNF2(SAig, pi.idx);
-							// this is the newer conflict formula
-						})
-
-					alreadyFalse = !addCnfToSolver(conflictSolver, conflict_cnf);
-					// new mappings, so no worries about dynamic ordering!
-					for (int i = 0; i < numX; i++)
-					{
-						varsCNF[i] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))];
-					}
-					for (int i = 0; i < numY; i++)
-					{
-						varsCNF[i + numX] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))];
-					}
-					Cnf_DataFree(conflict_cnf);
-				}
-
-				begSize = Aig_ManObjNum(SAig);
-				if (options.useShannon)
-				{
-					Aig_ManStop(stoSAig);
-					stoSAig = Aig_ManDupSimpleDfs(SAig);
-				}
-			}
-			else
-			{
-
-				TIMED(satSolvingTime, lbool ans = solveAndModel(SAig);)
-
+				Cnf_Dat_t *err_cnf = getErrorFormulaCNF(SAig);
+				auto ans = solveAndModel(SAig);
 				if (ans == l_False)
 				{
-					cout << "Conflict Free :" << pi.idx << endl;
-					repaired++;
+					break;
+				}
+				assert(ans != l_Undef);
+				i += 1;
+
+				repair(SAig);
+
+				if (it % 100 == 0)
+				{
+					SAig = compressAig(SAig);
+				}
+				Aig_ManCleanup(SAig);
+			}
+		}
+		else
+		{
+			while ((pi.idx < numY) && ((clock() - start) / CLOCKS_PER_SEC <= options.timeout))
+			{
+
+				// disabling unates for now with new conflict formula!
+				if (options.unate && (unates[pi.idx] != -1))
+				{
 					pi.idx++;
-					phase = true;
-
-					if (pi.idx >= numY)
-					{
-						break;
-					}
-
 					if (options.dynamicOrdering)
 					{
 						calcLeastOccurrenceSAig(SAig, pi.idx);
 					}
 
-					sat_solver_restart(conflictSolver);
+					int cnt = checkUnate(SAig, unates, pi.idx);
+					tot_unates += cnt;
+					// setUnatesSaig(SAig, unates);
+					Aig_ManCleanup(SAig);
 
-					TIMED(
-						conflictCnfTime,
-						if (options.conflictCheck == 1) {
-							conflict_cnf = getConflictFormulaCNF(SAig, pi.idx);
-						} else {
-							conflict_cnf = getConflictFormulaCNF2(SAig, pi.idx);
-							// this is the newer conflict formula
-						})
-
-					alreadyFalse = !addCnfToSolver(conflictSolver, conflict_cnf);
-					for (int i = 0; i < numX; i++)
+					if (cnt > 0)
 					{
-						varsCNF[i] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))];
-					}
-					for (int i = 0; i < numY; i++)
-					{
-						varsCNF[i + numX] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))];
-					}
-					Cnf_DataFree(conflict_cnf);
+						if (phase) {
+							phase = false;
+							phaseCount++;
+						}
 
-					// if (options.unate) {
-					// 	int cnt = checkUnate(SAig, unates);
-					// 	tot_unates += cnt;
-					// 	setUnatesSaig(SAig, unates);
-					// 	Aig_ManCleanup(SAig);
+						FAig = PositiveToNormalWithNeg(SAig);
+						FCnf = Cnf_Derive_Wrapper(FAig, 0);
+						Aig_ManStop(FAig);
 
-					// 	if (cnt > 0) {
-					// 		FAig = PositiveToNormalWithNeg(SAig);
-					// 		FCnf = Cnf_Derive_Wrapper(FAig, 0);
-					// 		Aig_ManStop(FAig);
-					// 	}
-					// }
+						sat_solver_restart(conflictSolver);
+
+						TIMED(
+							conflictCnfTime,
+							if (options.conflictCheck == 1) {
+								conflict_cnf = getConflictFormulaCNF(SAig, pi.idx);
+							} else {
+								conflict_cnf = getConflictFormulaCNF2(SAig, pi.idx);
+								// this is the newer conflict formula
+							})
+
+						alreadyFalse = !addCnfToSolver(conflictSolver, conflict_cnf);
+						// new mappings, so no worries about dynamic ordering!
+						for (int i = 0; i < numX; i++)
+						{
+							varsCNF[i] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))];
+						}
+						for (int i = 0; i < numY; i++)
+						{
+							varsCNF[i + numX] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))];
+						}
+						Cnf_DataFree(conflict_cnf);
+					}
 
 					begSize = Aig_ManObjNum(SAig);
 					if (options.useShannon)
@@ -272,55 +216,135 @@ int main(int argc, char **argv)
 				}
 				else
 				{
-					i++;
-					assert(ans != l_Undef);
 
-#ifdef DEBUG
-					assert(isConflict(SAig, pi.idx));
-#endif
+					TIMED(satSolvingTime, lbool ans = solveAndModel(SAig);)
 
-					if (options.useShannon && (Aig_ManObjNum(SAig) >= int(1.75 * begSize)))
+					if (ans == l_False)
 					{
-						doShannonExp(stoSAig, pi.idx);
-						Aig_ManStop(SAig);
-						SAig = Aig_ManDupSimpleDfs(stoSAig);
-						// known to fix all conflicts!
-						// next SAT check would yield false now!
+						cout << "Conflict Free : " << pi.idx << endl;
+						repaired++;
+						pi.idx++;
+						phase = true;
+
+						if (pi.idx >= numY)
+						{
+							break;
+						}
+
+						if (options.dynamicOrdering)
+						{
+							calcLeastOccurrenceSAig(SAig, pi.idx);
+						}
+
+						sat_solver_restart(conflictSolver);
+
+						TIMED(
+							conflictCnfTime,
+							if (options.conflictCheck == 1) {
+								conflict_cnf = getConflictFormulaCNF(SAig, pi.idx);
+							} else {
+								conflict_cnf = getConflictFormulaCNF2(SAig, pi.idx);
+								// this is the newer conflict formula
+							})
+
+						alreadyFalse = !addCnfToSolver(conflictSolver, conflict_cnf);
+						for (int i = 0; i < numX; i++)
+						{
+							varsCNF[i] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsXS[i]))];
+						}
+						for (int i = 0; i < numY; i++)
+						{
+							varsCNF[i + numX] = AigToCNF[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))] = conflict_cnf->pVarNums[Aig_ObjId(Aig_ManCi(SAig, varsYS[i]))];
+						}
+						Cnf_DataFree(conflict_cnf);
+
+						// if (options.unate) {
+						// 	int cnt = checkUnate(SAig, unates);
+						// 	tot_unates += cnt;
+						// 	setUnatesSaig(SAig, unates);
+						// 	Aig_ManCleanup(SAig);
+
+						// 	if (cnt > 0) {
+						// 		FAig = PositiveToNormalWithNeg(SAig);
+						// 		FCnf = Cnf_Derive_Wrapper(FAig, 0);
+						// 		Aig_ManStop(FAig);
+						// 	}
+						// }
+
+						begSize = Aig_ManObjNum(SAig);
+						if (options.useShannon)
+						{
+							Aig_ManStop(stoSAig);
+							stoSAig = Aig_ManDupSimpleDfs(SAig);
+						}
 					}
 					else
 					{
-						TIMED(repairTime, repair(SAig))
-					}
+						i++;
+						assert(ans != l_Undef);
 
-					TIMED(
-						compressTime, if (it % compressFreq == 0) {
-							// perform compression every once in a while
+	#ifdef DEBUG
+						assert(isConflict(SAig, pi.idx));
+	#endif
 
-							int inCnt = Aig_ManObjNum(SAig);
-							SAig = compressAig(SAig);
-							int outCnt = Aig_ManObjNum(SAig);
-
-							if ((outCnt >= int(inCnt * 0.99)) && (compressFreq < 1000))
-							{
-								// non substantial benefits are not useful
-								compressFreq *= 2;
-							}
-							else
-							{
-								// compression costs more for larger Aigs
-								compressFreq = int(compressFreq * 1.2);
-							}
-
-#ifdef DEBUG
-							assert(Aig_IsPositive(SAig));
-#endif
+						if (options.useShannon && (Aig_ManObjNum(SAig) >= int(1.75 * begSize)))
+						{
+							doShannonExp(stoSAig, pi.idx);
+							Aig_ManStop(SAig);
+							SAig = Aig_ManDupSimpleDfs(stoSAig);
+							// known to fix all conflicts!
+							// next SAT check would yield false now!
+						}
+						else
+						{
+							TIMED(repairTime, repair(SAig))
 						}
 
-						Aig_ManCleanup(SAig);)
+						TIMED(
+							compressTime, if (it % compressFreq == 0) {
+								// perform compression every once in a while
+
+								int inCnt = Aig_ManObjNum(SAig);
+								SAig = compressAig(SAig);
+								int outCnt = Aig_ManObjNum(SAig);
+
+								if ((outCnt >= int(inCnt * 0.99)) && (compressFreq < 1000))
+								{
+									// non substantial benefits are not useful
+									compressFreq *= 2;
+								}
+								else
+								{
+									// compression costs more for larger Aigs
+									compressFreq = int(compressFreq * 1.2);
+								}
+
+	#ifdef DEBUG
+								assert(Aig_IsPositive(SAig));
+	#endif
+							}
+
+							Aig_ManCleanup(SAig);)
+					}
 				}
 			}
 		}
+
 	}
+
+#ifdef DEBUG
+	auto finalFAig = PositiveToNormal(SAig);
+
+	auto miter = Aig_ManCreateMiter(initFAig, finalFAig, 0);
+	auto Ntk = Abc_NtkFromAigPhase(miter);
+	auto out = Abc_NtkMiterSat(Ntk, 0, 0, 0, NULL, NULL);
+	assert(out == 1);
+
+	Aig_ManStop(initFAig);
+	Aig_ManStop(finalFAig);
+	Aig_ManStop(miter);
+	Abc_NtkDelete(Ntk);
+#endif
 
 	cout << "DONE!" << endl;
 
