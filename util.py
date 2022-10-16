@@ -1,3 +1,10 @@
+# SOME CONSTANTS LIE HERE
+
+LINES_COUNT = 7
+
+
+# NOW ALL IS FIELDS AND SUCH
+
 BNAME = "Benchmark Name"
 VORDER = "Variable Ordering"
 HASH = "Hash"

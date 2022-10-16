@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 	map<int, string> id2NameF;
 	int itCount, someI = 0;
 	Abc_Ntk_t *FNtk;
-	Aig_Man_t *FAig, *SAig, *stoSAig;
+	Aig_Man_t *FAig, *SAig, *stoSAig, *finResSAig;
 	Cnf_Dat_t *conflict_cnf;
 	int compressFreq = 5;
 	int repaired = 0;
@@ -74,6 +74,7 @@ int main(int argc, char **argv)
 	SAig = NormalToPositive(FAig);
 	Aig_ManStop(FAig);
 	SAig = compressAig(SAig);
+	finResSAig = Aig_ManStartFrom(SAig);
 
 	int initSize = Aig_ManObjNum(SAig);
 
@@ -226,9 +227,27 @@ int main(int argc, char **argv)
 				if (ans == l_False)
 				{
 					cout << "Conflict Free : " << pi.idx << endl;
-					repaired++;
-					pi.idx++;
-					phase = true;
+
+					// final result saving
+					auto pObj = Aig_ManCo(SAig, 0)->pFanin0;
+					vector<int> varsR;
+					vector<Aig_Obj_t*> funcsR;
+
+					for (int i = 0; i <= pi.idx; i++) {
+						varsR.push_back(varsYS[i]);
+						varsR.push_back(varsYS[i] + numOrigInputs);
+						funcsR.push_back(Aig_ManConst1(SAig));
+						funcsR.push_back(Aig_ManConst1(SAig));
+					}
+
+					pObj = Aig_ComposeVec(SAig, pObj, funcsR, varsR);
+
+					pObj = Aig_Transfer(SAig, finResSAig, pObj, 2 * numOrigInputs);
+					Aig_ObjCreateCo(finResSAig, pObj);
+					Aig_ManCleanup(SAig);
+					assert(Aig_ManCheck(SAig));
+					assert(Aig_ManCheck(finResSAig));
+
 
 					if (someI > 0) {
 						// we store FAig, can be xored to the previous one for checking
@@ -244,15 +263,18 @@ int main(int argc, char **argv)
 							Abc_NtkDelete(Ntk);
 							FAig = FAig2;
 
-							cout << "Verification succeeded for index : " << (pi.idx - 1) << endl;
+							cout << "Verification succeeded for index : " << pi.idx << endl;
 						#endif
 					}
+
+					repaired++;
+					pi.idx++;
+					phase = true;
+					someI = 0;
 
 					if (pi.idx >= numY) {
 						break;
 					}
-
-					someI = 0;
 
 					if (options.dynamicOrdering)
 					{
@@ -369,6 +391,8 @@ int main(int argc, char **argv)
 
 	cout << double(clock() - start) / CLOCKS_PER_SEC << " seconds" << endl;
 	cout << repairTime << " " << conflictCnfTime << " " << satSolvingTime << " " << unateTime << " " << compressTime << " " << rectifyCnfTime << " " << rectifyUnsatCoreTime << " " << overallCnfTime << endl;
+
+	cout << "Total Result COs : " << Aig_ManCoNum(finResSAig) << " Size : " << Aig_ManObjNum(finResSAig) << endl;
 
 	dumpResults(SAig, id2NameF);
 

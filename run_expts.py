@@ -43,7 +43,7 @@ def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
             with open(f'{analysisdir}/analysis-{hash}.txt','w') as _:
                 run(["gprof","bin/main",gmon],stdout=_)
 
-        lines = oup.splitlines()[-6:]
+        lines = oup.splitlines()[-LINES_COUNT:]
 
         initial = lines[0].split(b':')[1].strip().split()[0].decode()
         final = lines[1].split(b':')[1].strip().split()[0].decode()
@@ -80,18 +80,7 @@ arguments = parser.parse_args()
 os.makedirs(arguments.outdir, exist_ok=True)
 
 CSV = open(f'{arguments.outdir}/runs.csv', 'w')
-
-# filedict = {
-# ALLUNATES   : open(f'{arguments.outdir}/{ALLUNATES}', 'w'),
-# NOCONFU     : open(f'{arguments.outdir}/{NOCONFU}', 'w'),
-# NOCONF      : open(f'{arguments.outdir}/{NOCONF}', 'w'),
-# NOU         : open(f'{arguments.outdir}/{NOU}', 'w'),
-# OTHER       : open(f'{arguments.outdir}/{OTHER}', 'w'),
-# ERROR       : open(f'{arguments.outdir}/{ERROR}', 'w'),
-# }
-
 wr = writer(CSV)
-
 wr.writerow(HEADER)
         
 if (not arguments.nocompile):
@@ -147,17 +136,9 @@ res = pool.get()
 for (D, outputs, error) in res:
     row, bname, hash, d, d_all = process(D, outputs, error)
     wr.writerow(row)
-
-    # for (k, v) in d.items():
-    #     assert v
-    #     filedict[k].write(f'{bname},{hash}\n')
-
     json_res.append(d_all)
     
 CSV.close()
-
-# for v in filedict.values():
-#     v.close()
 
 with open(f'{arguments.outdir}/results.json','w') as file:
     json.dump(json_res, file)
