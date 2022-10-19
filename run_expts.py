@@ -29,7 +29,7 @@ def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
     D[HASH] = hash
 
     try:
-        oup = check_output(args, stderr=STDOUT, timeout=D[TIMEOUT_FIELD] + 60)
+        oup = check_output(args, stderr=STDOUT, timeout=D[TIMEOUT_FIELD] + 300) # 5 min extra timeout!
         # Hard timeout of atmost twice
 
         os.makedirs(f'{arguments.outdir}/outputs', exist_ok=True)
@@ -79,6 +79,7 @@ arguments = parser.parse_args()
 
 os.makedirs(arguments.outdir, exist_ok=True)
 
+# TODO : we dump all code across config in same place, overwriting other config final results
 CSV = open(f'{arguments.outdir}/runs.csv', 'w')
 wr = writer(CSV)
 wr.writerow(HEADER)

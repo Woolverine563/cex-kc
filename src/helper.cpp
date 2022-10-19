@@ -76,7 +76,7 @@ void parseOptions(int argc, char *argv[])
 	// options.unate = false;
 	// options.useShannon = false;
 	// options.dynamicOrdering = false;
-	options.conflictCheck = 2; // only allow 1 or 2 for now!
+	// options.conflictCheck = 2; // only allow 1 or 2 for now!
 }
 
 int CommandExecute(Abc_Frame_t *pAbc, string cmd)
