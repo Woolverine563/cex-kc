@@ -870,13 +870,15 @@ void dumpNnf(Nnf_Man* nnf, string fname) {
 	ofstream outFile(fname);
 
 	// const 1 would be skipped for the time being, no idea how to deal with that
+
+	assert(nnf->pConst1->getNumRef() == 0);
 	
-	nnf->print();
+	// nnf->print();
 
 	int sz1 = nnf->_allNodes.size() - 2; // one PO
 	int sz2 = sz1 * 2 - nnf->getCiNum() * 4;
 
-	outFile << "nnf " << sz1 << " " << sz2 << " " << nnf->getCiNum() * 2 << endl;
+	outFile << "nnf " << sz1 << " " << sz2 << " " << nnf->getCiNum() << endl;
 
 	for (int i = 0; i < nnf->getCiNum(); i++) {
 		outFile << "L " << (nnf->_inputs_pos[i])->Id << endl;

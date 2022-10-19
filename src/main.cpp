@@ -72,6 +72,8 @@ int main(int argc, char **argv)
 	// vector<int> unates(numY, -1);
 
 	SAig = NormalToPositive(FAig);
+	exit(0);
+
 	Aig_ManStop(FAig);
 	SAig = compressAig(SAig);
 	stoSAig = Aig_ManDupSimpleDfs(SAig);

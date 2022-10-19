@@ -2228,7 +2228,8 @@ Aig_Man_t *NormalToPositive(Aig_Man_t *&FAig)
 	Nnf_Man nnf;
 	nnf.init(FAig);
 
-	// dumpNnf(&nnf, options.benchmark + ".nnf");
+	dumpNnf(&nnf, options.benchmark + ".nnf");
+	exit(0);
 
 	Aig_Man_t *SAig = nnf.createAigWithoutClouds();
 
