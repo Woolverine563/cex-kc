@@ -174,15 +174,18 @@ def genericAnalysis(c: Config, results: List[Result], file: str):
     print(f"Fully Solved : {cnt}")
 
     par2 = 0
+    avg = 0
     for s in results:
         if s.isSolved:
             par2 += float(s.results[TOT_TIME])
+            avg += float(s.results[TOT_TIME])
         else:
             par2 += c.__dict__[TIMEOUT_FIELD] * 2
 
-
     par2 /= len(results)
+    avg /= len(list(filter(lambda s: s.isSolved, results)))
     print(f"PAR2 Score : {par2:.2f}")
+    print(f"Avg Solved Runtime : {avg:.2f}")
 
     d = defaultdict(set)
 
@@ -217,14 +220,21 @@ def beyondManthan(c: Config, results: List[Result]):
     with open('beyond-manthan.txt') as f:
         bmarksBeyond = f.read().strip().split()
 
-    res = defaultdict(lambda : [])
+    res = {True:[], False:[]}
     for b in bmarksBeyond:
         for r in results:
-            if (b in r.benchmark) and r.isSolved and (not r.isAllU()):
-                res[b].append(r)
+            if (b in r.benchmark) and r.isSolved:
+                res[r.isAllU()].append(b)
 
-    print(f'Beyond Manthan (not allUnates): {len(list(res.keys()))} benchmarks')
-    for b in res.keys():
+    # we are running with single config for now...
+
+    print(f'Beyond Manthan (not allUnates): {len(list(res[False]))} benchmarks')
+    for b in res[False]:
+        print(b)
+    print()
+
+    print(f'Beyond Manthan (allUnates): {len(list(res[True]))} benchmarks')
+    for b in res[True]:
         print(b)
     print()
 
@@ -354,4 +364,4 @@ for file in sys.argv[1:]:
         genericAnalysis(c, res, file)
         beyondManthan(c, res)
         ratioOutputsSolved(c, res)
-        unatePostProcessing(c, res, file)
+        # unatePostProcessing(c, res, file)
