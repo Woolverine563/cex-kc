@@ -9,6 +9,7 @@ BNAME = "Benchmark Name"
 VORDER = "Variable Ordering"
 HASH = "Hash"
 
+EMPTY = ""
 BNAME_FIELD = "-b"
 VORDER_FIELD = "-v"
 OUTFOLDR_FIELD = "--out"
@@ -16,8 +17,9 @@ TIMEOUT_FIELD = "-t"
 UNATE_FIELD = "-u"
 FASTCNF_FIELD = "-f"
 DYNORDER_FIELD = "-o"
+CFORMULA_FIELD = "-c"
 BOOL_FIELDS = [UNATE_FIELD,"-s",DYNORDER_FIELD,FASTCNF_FIELD]
-VAL_FIELDS = [ "-c", "-r", "-d", TIMEOUT_FIELD, "--unateTimeout"]
+VAL_FIELDS = [CFORMULA_FIELD, "-r", "-d", TIMEOUT_FIELD, "--unateTimeout"]
 NON_BOOL_FIELDS = [BNAME_FIELD, VORDER_FIELD] + VAL_FIELDS
 CONFIG_FIELDS = BOOL_FIELDS + VAL_FIELDS
 FIELDS = [BNAME_FIELD, VORDER_FIELD] + CONFIG_FIELDS + [HASH]
@@ -28,11 +30,12 @@ FIN_UN = "Final unates"
 PHASE_CNT = "Phase Count"
 TOT_OUTPUTS = "Total outputs without unate"
 FIXED_OUTPUTS = "Outputs fixed"
+NUM_IT = "Number of iterations"
 NUM_CEX = "Number of cex"
 TOT_TIME = "Time taken"
 ERR = "ERROR"
 
-RESULTS = ["Initial size", "Final size", INIT_UN, FIN_UN, PHASE_CNT, "Number of iterations", NUM_CEX, FIXED_OUTPUTS, TOT_OUTPUTS, TOT_TIME, "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime", "compressTime", "rectifyCnfTime", "rectifyUnsatCoreTime", "overallCnfTime", ERR]
+RESULTS = ["Initial size", "Final size", INIT_UN, FIN_UN, PHASE_CNT, NUM_IT, NUM_CEX, FIXED_OUTPUTS, TOT_OUTPUTS, TOT_TIME, "repairTime", "conflictCnfTime", "satSolvingTime", "unateTime", "compressTime", "rectifyCnfTime", "rectifyUnsatCoreTime", "overallCnfTime", ERR]
 
 # ["Benchmark", "VarOrder", "unate?","shannon?", "dynamic?", "fastCNF?"]
 HEADER = FIELDS + RESULTS

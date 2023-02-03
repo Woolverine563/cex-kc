@@ -131,7 +131,7 @@ def compareFastCNFTime(results):
             dc.pop(FASTCNF_FIELD)
             d1 = copy.deepcopy(k.__dict__)
             d2 = copy.deepcopy(k.__dict__)
-            d2[FASTCNF_FIELD] = ''
+            d2[FASTCNF_FIELD] = EMPTY
 
             mapping[Config(dc)] = {True: d[Config(d1)], False: d[Config(d2)]}
 
@@ -151,11 +151,12 @@ def genericTotalAnalysis(results: List[Result]):
     # total benchmarks solved
     total = set()
     for k, v in data.items():
-        total.update(set([(r.benchmark, r.orderfile) for r in filter(lambda x : x.isSolved, v)]))
+        s = set([(r.benchmark, r.orderfile) for r in filter(lambda x : x.isSolved, v)])
+        total.update(s)
 
     print(f"Total benchmarks solved across any config: {len(total)} out of {max([len(v) for v in data.values()])}")
 
-    err_results = list(filter(lambda x : x.results["ERROR"] != '', itertools.chain(*data.values())))
+    err_results = list(filter(lambda x : x.results["ERROR"] != EMPTY, itertools.chain(*data.values())))
 
     errors = [(x.benchmark, x.orderfile) for x in err_results]
     timeouts = [(x.benchmark, x.orderfile) for x in filter(lambda x : 'timed out' in x.results["ERROR"], err_results)]
@@ -243,7 +244,7 @@ def ratioOutputsSolved(c: Config, results: List[Result]):
 
     values = defaultdict(list)
     for res in results:
-        if (res.error != ''):
+        if (res.error != EMPTY):
             continue
         tot_oups = int(res.results[TOT_OUTPUTS])
         fixed_oups = int(res.results[FIXED_OUTPUTS])
@@ -298,7 +299,7 @@ def unatePostProcessing(c: Config, results: List[Result], file: str, force_run: 
 
     values = []
     for res in results:
-        if (res.error != ''):
+        if (res.error != EMPTY):
             continue
         unatesPref = f"{folder}/Unates/{res.benchmark.split('/')[-1].rsplit('.', 1)[0]}"
         pUnatesF, nUnatesF = unatesPref + '.pUnates', unatesPref + '.nUnates'
@@ -347,21 +348,67 @@ def unatePostProcessing(c: Config, results: List[Result], file: str, force_run: 
     plt.savefig(f'graph_{PLOT_CNT}_ratio_unates.png')
     PLOT_CNT += 1
 
-for file in sys.argv[1:]:
-    with open(file, 'r') as f:
-        data = json.load(f)
+    
+def scatterPlot(resultsv1: List[Result], resultsv2: List[Result], name = ''):
+    d = defaultdict(dict)
+    for r in resultsv1:
+        if r.error == EMPTY:
+            d[r.benchmark]["1"] = int(r.results[NUM_IT])
+    
+    for r in resultsv2:
+        if r.error == EMPTY:
+            d[r.benchmark]["2"] = int(r.results[NUM_IT])
 
-    results = [Result(x) for x in data]
-    print('\n' + '-'*100)
-    print(f"{file}")
-    print('-'*100 + '\n')
+    lv1, lv2 = [], []
+    b = []        
 
-    genericTotalAnalysis(results)
-    resDict = separateConfigs(results)
+    for k,v in d.items():
+        if (len(v) == 2):
+            lv1.append(v["1"])
+            lv2.append(v["2"])
+            b.append(k)
 
-    for c, res in resDict.items():
-        print(f"{c} -> {c.hash()}\n")
-        genericAnalysis(c, res, file)
-        beyondManthan(c, res)
-        ratioOutputsSolved(c, res)
-        # unatePostProcessing(c, res, file)
+    # print(list(filter(lambda t: t[1] < t[2], zip(b, lv1, lv2))))
+
+    plt.figure()
+    plt.scatter(lv1, lv2)
+    plt.axis('square')
+    plt.show()    
+
+if __name__ == "__main__":    
+
+    allResults = []
+
+    for file in sys.argv[1:]:
+        with open(file, 'r') as f:
+            data = json.load(f)
+
+        results = [Result(x) for x in data]
+        allResults.extend(results)
+        print('='*100)
+        print(f"{file}")
+        print('='*100)
+        print('\n')
+
+        genericTotalAnalysis(results)
+        resDict = separateConfigs(results)
+
+        for c, res in resDict.items():
+            print('-'*100)
+            print(f"{c} -> {c.hash()}")
+            print('-'*100)
+            # genericAnalysis(c, res, file)
+            # beyondManthan(c, res)
+            # ratioOutputsSolved(c, res)
+            # unatePostProcessing(c, res, file)
+
+    # scatter plot b/w conflict v2 and conflict v1
+    DOv1 = separateConfigs(allResults, {DYNORDER_FIELD: DYNORDER_FIELD, CFORMULA_FIELD: 1}).popitem()[1]
+    DOv2 = separateConfigs(allResults, {DYNORDER_FIELD: DYNORDER_FIELD, CFORMULA_FIELD: 2}).popitem()[1]
+    NoDOv1 = separateConfigs(allResults, {DYNORDER_FIELD: EMPTY, CFORMULA_FIELD: 1}).popitem()[1]
+    NoDOv2 = separateConfigs(allResults, {DYNORDER_FIELD: EMPTY, CFORMULA_FIELD: 2}).popitem()[1]
+
+    # scatterPlot(DOv1, DOv2, name = 'DO')
+    # scatterPlot(NoDOv1, NoDOv2, name = 'NoDO')
+    
+
