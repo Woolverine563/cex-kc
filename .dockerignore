@@ -1,0 +1,20 @@
+
+# compilation files
+bin/
+obj/
+__pycache__/
+
+.vscode/
+
+# data files
+gmon.out
+analysis/
+results/
+partial_results/
+sdd.csv
+*.nnf
+*.sdd
+data/
+data_zips/
+analysis.txt
+*/output

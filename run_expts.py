@@ -101,7 +101,7 @@ rectify = [3]
 conflict = [2]
 unate = [True]
 shannon = [False]
-dynamic = [False, True]
+dynamic = [False]
 fastcnf = [False]
 timeout = arguments.timeout
 unatetimeout = arguments.timeout if (len(arguments.unatetimeout) == 0) else arguments.unatetimeout
