@@ -18,3 +18,12 @@ data/
 data_zips/
 analysis.txt
 */output
+
+# not needed code files
+all_benchmarks.py
+setup.sh
+manthan_extra_benchmarks
+src/verify.cpp
+src/revsub.cpp
+
+artifact.zip

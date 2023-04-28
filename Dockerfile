@@ -11,4 +11,4 @@ COPY --chown=user . .
  
 RUN cd dependencies/abc && make libabc.a -j4
 
-CMD ["/bin/bash", "-l", "test.sh"]
+ENTRYPOINT ["./test.sh"]

@@ -6,5 +6,6 @@ mkdir -p "${folder}/results/UnatesOnly/"
 mkdir -p "${folder}/results/OrderFiles/"
 mkdir -p "${folder}/results/Verilogs/"
 mkdir -p "${folder}/analysis/"
-python3 run_expts.py test_benchmarks -timeout 3600 2>&1 > $folder/output
+benchmarks="small_test_benchmarks"
+python3 run_expts.py $benchmarks -resultdir "${folder}/results" -timeout 3600 -unatetimeout 3600 2>&1 > $folder/output
 python3 analysis.py "${folder}/results/results.json"
