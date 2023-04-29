@@ -4,25 +4,40 @@ This is the source code of a tool based on work reported in the paper "Counterex
 
 
 ## Documentation
-- [Structure](#structure)
-- [Setup](#setup)
-- [Usage](#usage)
-- [Source code](#source-code)
-- [Benchmarks](#benchmarks)
-- [Scripts](#scripts)
-- [Replicating the results](#replicating-the-results)
+- [Counter-Example Guided Knowledge Compilation for Boolean Functional Synthesis](#counter-example-guided-knowledge-compilation-for-boolean-functional-synthesis)
+  - [Documentation](#documentation)
+  - [Structure](#structure)
+  - [Setup](#setup)
+    - [Using docker](#using-docker)
+    - [Locally](#locally)
+  - [Usage](#usage)
+    - [Using docker](#using-docker-1)
+    - [Locally](#locally-1)
+  - [Source code](#source-code)
+  - [Benchmarks](#benchmarks)
+  - [Scripts](#scripts)
+    - [Running the experiments](#running-the-experiments)
+    - [Analysing the outputs](#analysing-the-outputs)
+      - [Beyond Manthan analysis](#beyond-manthan-analysis)
+  - [Resource requirements](#resource-requirements)
+  - [Replicating the results](#replicating-the-results)
 
 ## Structure
 This repository consists of primarily the [source code](#source-code) of the tool, the patched library [abc](dependencies/abc), [benchmarks](#benchmarks) and [scripts](#scripts) to run the tool & analyse the results.
 
-Code from [bfss](https://github.com/BooleanFunctionalSynthesis/bfss) has been re-used in the creation of this tool. A patched version of [abc](https://github.com/jsahil730/abc) has also been employed and the same resides at [dependencies/abc](dependencies/abc). 
+Code from [bfss](https://github.com/BooleanFunctionalSynthesis/bfss), under license GPLv2.0, has been re-used in the creation of this tool. A patched version of [abc](https://github.com/jsahil730/abc) has also been employed and the same resides at [dependencies/abc](dependencies/abc). 
 
 
 ## Setup
 
 ### Using docker
 
-The tool can be directly built as a docker image using the provided [Dockerfile](Dockerfile) using the following command `sudo docker build -t cex_kc:latest .` This prepares the image but the tool is actually only built when running the container. 
+The tool can be directly built as a docker image using the provided [Dockerfile](Dockerfile) using the following command :
+
+```
+sudo docker build -t cex_kc:latest .
+``` 
+This prepares the docker image but the tool is actually only built when running the container. 
 
 > Note that building this docker image for the first time can take around 20 to 30 minutes. Rebuilding the docker image should usually not take more than 10 to 15 minutes.
 
@@ -39,7 +54,13 @@ The source code can be compiled simply by using `make [BUILD=RELEASE/TEST/DEBUG]
 
 ### Using docker
 
-Once the docker image has been built as mentioned above, the container can be simply run as `sudo docker run cex_kc:latest` and it should begin performing a complete set of experiments on the `small_test_benchmarks` file by default. Few such files containing different set of benchmarks have been provided, the details of which can be found in the [Benchmarks](#benchmarks) section.
+Once the docker image has been built as mentioned above, the container can be simply run as :
+```
+sudo docker run cex_kc:latest [-d single_test_benchmarks/small_test_benchmarks/test_benchmarks/all_benchmarks]
+```
+
+By default, the experiments are run with `small_test_benchmarks`; and to run it with a different file, the filename needs to be provided with the `docker run` command, ie, `sudo docker run cex_kc:latest -d single_test_benchmarks`.
+Few such files containing different set of benchmarks have been provided, the details of which can be found in the [Benchmarks](#benchmarks) section.
 
 ### Locally
 
@@ -70,15 +91,13 @@ There are total 602 such benchmarks on which the experiments have been performed
 Multiple files containing benchmark paths have been provided for running the complete set of experiments :
 - [all_benchmarks](all_benchmarks) contains a list of all 602 benchmarks.
 - [test_benchmarks](test_benchmarks) contains a list of some 304 benchmarks which were completely solved within half an hour under a specific choice of parameters and on hardware configuration described in the paper.
-- [small_test_benchmarks](small_test_benchmarks) contains a random subset of 20 benchmarks from [test_benchmarks](test_benchmarks) which can be used for tallying the results.
-- [single_test_benchmarks](single_test_benchmarks) contains a single benchmark path for running a smoke test to confirm whether anything is broken.
-
-By default, the experiments are run with `small_test_benchmarks`. To run it with a different benchmarks file, the filename needs to be provided with the `docker run` command, ie, `docker run cex_kc:latest -d single_test_benchmarks`.
+- [small_test_benchmarks](small_test_benchmarks) contains a random subset of 20 benchmarks from [test_benchmarks](test_benchmarks) which can be used for verifying the results.
+- [single_test_benchmarks](single_test_benchmarks) contains a single benchmark path for running a smoke test to confirm whether anything is broken since this benchmark gets solved within a few seconds.
 
 
 ## Scripts
 
-The code has also been provided with few scripts to [run](run_expts.py) it on several benchmarks at once as well as perform post-run [analysis](analysis.py).
+The code has also been provided with few scripts to [run](run_expts.py) it on several benchmarks at once as well as perform post-run [analysis](analysis.py). The complete set of scripts can be invoked in sequence by directly running the [test.sh](test.sh). This would create the required directories for dumping the results; run the experiments as well as perform the final analysis on the same.
 
 ### Running the experiments
 
@@ -115,18 +134,18 @@ It is possible to effortlessly run the experiments on any personal laptop or des
 
 ## Replicating the results 
 
-To replicate the results of the paper, depending on whether the experiments are to be run on all of the benchmarks, or just a small subset of them, the `docker run` command needs to be specified accordingly. This would create the required directories for dumping the results; run the experiments as well as perform the final analysis on the same.
+To replicate the results of the paper, depending on whether the experiments are to be run on all of the benchmarks, or just a small subset of them, the `docker run` command needs to be specified accordingly. 
 
 To run the experiments on all benchmarks, the following command can be used -
 ```
-docker run cex_kc:latest -d all_benchmarks
+sudo docker run cex_kc:latest -d all_benchmarks
 ```
 
 > On the specified resource requirements, this run might potentially take several days to be completed. It is therefore not recommended to run this on a personal computer.
 
 To run the experiments on just a subset of the benchmarks, the following command can be used -
 ```
-docker run cex_kc:latest -d small_test_benchmarks
+sudo docker run cex_kc:latest -d small_test_benchmarks
 ```
 
 > This run should take atmost a couple of hours on the resource requirements stated above.
