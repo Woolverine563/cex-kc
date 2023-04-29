@@ -56,11 +56,12 @@ The source code can be compiled simply by using `make [BUILD=RELEASE/TEST/DEBUG]
 
 Once the docker image has been built as mentioned above, the container can be simply run as :
 ```
-sudo docker run cex_kc:latest [single_test_benchmarks/small_test_benchmarks/test_benchmarks/all_benchmarks]
+sudo docker run cex_kc:latest [single_test_benchmarks/small_test_benchmarks/test_benchmarks/all_benchmarks] [retain]
 ```
 
 By default, the experiments are run with `small_test_benchmarks`; and to run it with a different file, the filename needs to be provided with the `docker run` command, ie, `sudo docker run cex_kc:latest single_test_benchmarks`.
 Few such files containing different set of benchmarks have been provided, the details of which can be found in the [Benchmarks](#benchmarks) section.
+Furthermore, by default, the docker container quits immediately after the experiments finish execution. To retain the container and be able to inspect the generated results, logfiles and outputs; the filename as well as a second option to retain has to be provided, ie, `sudo docker run cex_kc:latest single_test_benchmarks retain`.
 
 ### Locally
 

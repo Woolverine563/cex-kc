@@ -91,8 +91,6 @@ parser.add_argument("-dynamic", type=lambda s: list(set([bool(int(item)) for ite
 
 arguments = parser.parse_args()
 
-print(arguments.dynamic)
-
 os.makedirs(arguments.resultdir, exist_ok=True)
 
 # TODO : we dump all data across config in same place, overwriting other config final outputs
