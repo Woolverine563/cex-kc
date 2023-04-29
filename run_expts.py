@@ -86,10 +86,12 @@ parser.add_argument("-unatetimeout", type=lambda s: list(set([int(item) for item
 parser.add_argument("-depth", type=lambda s: list(set([int(item) for item in s.split(',')])), default=[20], help="Depth to be used for rectification")
 parser.add_argument("-rectify", type=lambda s: list(set([int(item) for item in s.split(',')])), default=[3], help="Rectification type to be used")
 parser.add_argument("-conflict", type=lambda s: list(set([int(item) for item in s.split(',')])), default=[2], help="Conflict type to be checked for")
-parser.add_argument("-unate", type=lambda s: list(set([bool(item) for item in s.split(',')])), default=[True], help="Should unates be employed")
-parser.add_argument("-dynamic", type=lambda s: list(set([bool(item) for item in s.split(',')])), default=[False], help="Should ordering be generated on the fly")
+parser.add_argument("-unate", type=lambda s: list(set([bool(int(item)) for item in s.split(',')])), default=[True], help="Should unates be employed")
+parser.add_argument("-dynamic", type=lambda s: list(set([bool(int(item)) for item in s.split(',')])), default=[False], help="Should ordering be generated on the fly")
 
 arguments = parser.parse_args()
+
+print(arguments.dynamic)
 
 os.makedirs(arguments.resultdir, exist_ok=True)
 
