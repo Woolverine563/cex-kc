@@ -56,10 +56,10 @@ The source code can be compiled simply by using `make [BUILD=RELEASE/TEST/DEBUG]
 
 Once the docker image has been built as mentioned above, the container can be simply run as :
 ```
-sudo docker run cex_kc:latest [-d single_test_benchmarks/small_test_benchmarks/test_benchmarks/all_benchmarks]
+sudo docker run cex_kc:latest [single_test_benchmarks/small_test_benchmarks/test_benchmarks/all_benchmarks]
 ```
 
-By default, the experiments are run with `small_test_benchmarks`; and to run it with a different file, the filename needs to be provided with the `docker run` command, ie, `sudo docker run cex_kc:latest -d single_test_benchmarks`.
+By default, the experiments are run with `small_test_benchmarks`; and to run it with a different file, the filename needs to be provided with the `docker run` command, ie, `sudo docker run cex_kc:latest single_test_benchmarks`.
 Few such files containing different set of benchmarks have been provided, the details of which can be found in the [Benchmarks](#benchmarks) section.
 
 ### Locally
@@ -140,14 +140,14 @@ To replicate the results of the paper, depending on whether the experiments are 
 
 To run the experiments on all benchmarks and replicate results of the paper, the following command can be used -
 ```
-sudo docker run cex_kc:latest -d all_benchmarks
+sudo docker run cex_kc:latest all_benchmarks
 ```
 
 > Please note! On the specified resource requirements, this run might potentially take several days to be completed. 
 
 To run the experiments on just a subset of the benchmarks, the following command can be used -
 ```
-sudo docker run cex_kc:latest -d small_test_benchmarks
+sudo docker run cex_kc:latest small_test_benchmarks
 ```
 
 > This run should take atmost a couple of hours on the resource requirements stated above.
