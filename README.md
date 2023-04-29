@@ -94,7 +94,7 @@ Multiple files containing benchmark paths have been provided for running the com
 - [small_test_benchmarks](small_test_benchmarks) contains a random subset of 20 benchmarks from [test_benchmarks](test_benchmarks) which can be used for verifying the results.
 - [single_test_benchmarks](single_test_benchmarks) contains a single benchmark path for running a smoke test to confirm whether anything is broken since this benchmark gets solved within a few seconds.
 
-One can also add new benchmarks but creating them in aiger or verilog format and adding them to this benchmarks folder being called, but note that in this case the docker image will have to be rebuilt before running the tool.
+One can also add new benchmarks by creating them in aiger or verilog format and adding them to this benchmarks folder, but note that in this case the docker image will have to be rebuilt before running the tool.
 
 
 ## Scripts
