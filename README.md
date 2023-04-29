@@ -61,7 +61,8 @@ sudo docker run cex_kc:latest [single_test_benchmarks/small_test_benchmarks/test
 
 By default, the experiments are run with `small_test_benchmarks`; and to run it with a different file, the filename needs to be provided with the `docker run` command, ie, `sudo docker run cex_kc:latest single_test_benchmarks`.
 Few such files containing different set of benchmarks have been provided, the details of which can be found in the [Benchmarks](#benchmarks) section.
-Furthermore, by default, the docker container quits immediately after the experiments finish execution. To retain the container and be able to inspect the generated results, logfiles and outputs; the filename as well as a second option to retain has to be provided, ie, `sudo docker run cex_kc:latest single_test_benchmarks retain`.
+
+Furthermore, by default, the docker container exits immediately after the experiments finish execution. To retain the container and be able to inspect the generated results, logfiles and outputs; the filename as well as a second option to retain has to be provided, ie, `sudo docker run cex_kc:latest single_test_benchmarks retain`. In this case, the container needs to be exited by closing the shell directly.
 
 ### Locally
 
