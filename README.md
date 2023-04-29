@@ -22,31 +22,38 @@ Code from [bfss](https://github.com/BooleanFunctionalSynthesis/bfss) has been re
 
 ### Using docker
 
-The tool can be directly built as a docker image using the provided [Dockerfile](Dockerfile) using the following command `docker build -t cex_kc:latest .` This prepares the image but the tool is actually only built when running the container.
+The tool can be directly built as a docker image using the provided [Dockerfile](Dockerfile) using the following command `sudo docker build -t cex_kc:latest .` This prepares the image but the tool is actually only built when running the container. 
+
+> Note that building this docker image for the first time can take around 20 to 30 minutes. Rebuilding the docker image should usually not take more than 10 to 15 minutes.
 
 ### Locally
 
-In case it is necessary to run the tool locally, it is recommended to use [setup.sh](setup.sh) for setting up [abc](dependencies/abc) appropriately. Additional libraries such as `readline`, `boost_program_options` etc might need to be installed in this case.
+If it is required to run the tool locally, it is recommended to use [setup.sh](setup.sh) for setting up [abc](dependencies/abc) appropriately. Additional libraries such as `readline`, `boost-program-options`, `termcap` etc also need to be installed in this case; which are usually either available or installable in any standard linux distribution.
 
-The code can be compiled simply by using `make [BUILD=RELEASE/TEST/DEBUG]` after setting up abc.
+Also it is required to install `matplotlib` and `scipy` python3 packages for being able to use the [scripts](#scripts) & run the complete experiments on multiple benchmarks. 
+
+The source code can be compiled simply by using `make [BUILD=RELEASE/TEST/DEBUG]` after setting up abc.
 
 
 ## Usage
 
 ### Using docker
 
-Once the docker image has been built as mentioned above, the container can be simply run as `docker run cex_kc:latest` and it should start running the tool on the `benchmarks` file specified in [test.sh](test.sh). Few such files containing different set of benchmarks have been provided, the details of which can be found in the [Benchmarks](#benchmarks) section.
+Once the docker image has been built as mentioned above, the container can be simply run as `sudo docker run cex_kc:latest` and it should begin performing a complete set of experiments on the `small_test_benchmarks` file by default. Few such files containing different set of benchmarks have been provided, the details of which can be found in the [Benchmarks](#benchmarks) section.
 
 ### Locally
 
 The built binary(tool) when compiled locally, resides at `./bin/main` and requires specifying a benchmark along with a preliminary ordering to use and an output folder. Details about other options can be checked out by using the `-h` help option. The benchmark can be provided in either verilog or aig format. Qdimacs benchmarks would need to be converted to verilogs using [readCnf](src/readCnf.cpp).
 
-On invoking the tool as above, logging information is printed to the standard output and data regarding unates, final ordering etc are dumped in their respective directories named as `Unates`, `OrderFiles` etc inside the specified output folder. 
+```
+bin/main -b examples/example2.v -v examples/OrderFiles/example2_varstoelim.txt --out examples/ 
+```
 
-> Note that these folders have to be pre-existent otherwise the tool would report `Segmentation Fault` while trying to dump the results.
+On invoking the tool as above, logging information is printed to the standard output and data regarding unates, final ordering etc are dumped in their respective directories inside the specified output folder. Subfolders within the output folder under the name of `OrderFiles`, `Unates`, `Verilogs` and `UnatesOnly` have to be created before invoking the tool. 
 
 
-For replicating the results reported in the paper, please skip to [Scripts](#scripts) section.
+
+For replicating the results reported in the paper, please skip to [Replicating the results](#replicating-the-results) section.
 
 ## Source code
 
@@ -54,18 +61,19 @@ The source code is written completely in C++ and is mainly divided across two fi
 
 Few of the interesting functions in the file include - [`getConflictFormulaCNF`](src/helper.cpp#L3138) & [`getConflictFormulaCNF2`](src/helper.cpp#L3211) functions, both of which are used to obtain conflict formulae for a given index; [`repair`](src/helper.cpp#L2778) function which performs rectification of the input `Aig` based on a single counter-example; and [`Rectify`](src/helper.cpp#L2434) & [`Rectify3`](src/helper.cpp#L2642) functions where the actual rectification takes place.
 
-> Unfortunately, some parts of the code may be broken (`Rectify2` is one example) or unused.
-
 
 ## Benchmarks
 
 The benchmarks used for experimentation have been borrowed from [bfss](https://github.com/BooleanFunctionalSynthesis/bfss/tree/master/benchmarks) as well; and can be found in the [benchmarks](benchmarks) directory.
 There are total 602 such benchmarks on which the experiments have been performed.  
 
-Multiple files containing benchmark paths have been provided for running the complete set of experiments and can be accordingly used in the [test.sh](test.sh) script:
+Multiple files containing benchmark paths have been provided for running the complete set of experiments :
 - [all_benchmarks](all_benchmarks) contains a list of all 602 benchmarks.
 - [test_benchmarks](test_benchmarks) contains a list of some 304 benchmarks which were completely solved within half an hour under a specific choice of parameters and on hardware configuration described in the paper.
-- [small_test_benchmarks](small_test_benchmarks) contains a random subset of 50 benchmarks from [test_benchmarks](test_benchmarks) which can be used for tallying the results.
+- [small_test_benchmarks](small_test_benchmarks) contains a random subset of 20 benchmarks from [test_benchmarks](test_benchmarks) which can be used for tallying the results.
+- [single_test_benchmarks](single_test_benchmarks) contains a single benchmark path for running a smoke test to confirm whether anything is broken.
+
+By default, the experiments are run with `small_test_benchmarks`. To run it with a different benchmarks file, the filename needs to be provided with the `docker run` command, ie, `docker run cex_kc:latest -d single_test_benchmarks`.
 
 
 ## Scripts
@@ -74,7 +82,11 @@ The code has also been provided with few scripts to [run](run_expts.py) it on se
 
 ### Running the experiments
 
-`run_expts.py` requires a file to read benchmark paths from as input. Other options are detailed about in the usage help. 
+`run_expts.py` requires a file to read benchmark paths as input. Other options are detailed about in the usage help. 
+
+```
+python3 run_expts.py small_test_benchmarks -resultdir "results"
+```
 
 This script runs all the benchmarks specified in the file with each possible configuration, based on the options, and the results are eventally reported in `runs.csv` and `results.json` files, both present within the results directory specified. The results directory also includes other files outputted by the tool as well as an `outputs` directory containing the logfiles for each run of the tool, all named with a different hash.
 
@@ -84,11 +96,37 @@ Hashed directories are also created in the same results folder for each possible
 
 ### Analysing the outputs
 
-`analysis.py` requires the `json` file emitted by running the experiments and performs various different analyses. Note that some analyses might be cross-configurations while others might not be. It is therefore advised to appropriately comment or uncomment the analyses required to be run.
+`analysis.py` requires the `json` file emitted by running the experiments and performs various different analyses.
+
+```
+python3 analysis_py results/results.json
+```
+
+Note that some analyses might be cross-configurations while others might not be. It is therefore advised to appropriately comment or uncomment the analyses required to be run.
+
+#### Beyond Manthan analysis
+
+The textfile [beyond-manthan.txt](beyond-manthan.txt) jots down all the benchmarks which could not be solved by [Manthan](https://github.com/meelgroup/manthan) within the specified one hour time limit. Beyond Manthan analysis compares the solved benchmarks of any run with this textfile and reports all those which have been solved by the tool.
+
+
+## Resource requirements
+
+It is possible to effortlessly run the experiments on any personal laptop or desktop as well. Any such device with atleast 4 GB RAM, single core, 1.5 or so GHz cpu frequency and atleast 10 GB of free hard disk space should be able to replicate even the complete results sans the time taken. 
 
 ## Replicating the results 
 
-To replicate the results of the paper, it is simply required to enter the required parameters to be provided to `run_expts.py` in the [test.sh](test.sh) script, including whether the experiments are to be run on all of the benchmarks, or just a small subset of them. This script creates the required directories for dumping the results; runs the experiments as well as performs the final analysis on the same.
+To replicate the results of the paper, depending on whether the experiments are to be run on all of the benchmarks, or just a small subset of them, the `docker run` command needs to be specified accordingly. This would create the required directories for dumping the results; run the experiments as well as perform the final analysis on the same.
 
-It is to be noted that running on all the benchmarks may take potentially a few days on any reasonable personal device such as desktop, laptop. It is therefore recommended to run the experiments only with a small set of benchmarks which may finish in reasonable time.
+To run the experiments on all benchmarks, the following command can be used -
+```
+docker run cex_kc:latest -d all_benchmarks
+```
 
+> On the specified resource requirements, this run might potentially take several days to be completed. It is therefore not recommended to run this on a personal computer.
+
+To run the experiments on just a subset of the benchmarks, the following command can be used -
+```
+docker run cex_kc:latest -d small_test_benchmarks
+```
+
+> This run should take atmost a couple of hours on the resource requirements stated above.

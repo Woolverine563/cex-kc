@@ -400,13 +400,13 @@ if __name__ == "__main__":
             genericAnalysis(c, res, file)
             beyondManthan(c, res)
             ratioOutputsSolved(c, res)
-            unatePostProcessing(c, res, file)
+            # unatePostProcessing(c, res, file)
 
     # scatter plot b/w conflict v2 and conflict v1
     # DOv1 = separateConfigs(allResults, {DYNORDER_FIELD: DYNORDER_FIELD, CFORMULA_FIELD: 1}).popitem()[1]
     # DOv2 = separateConfigs(allResults, {DYNORDER_FIELD: DYNORDER_FIELD, CFORMULA_FIELD: 2}).popitem()[1]
     # NoDOv1 = separateConfigs(allResults, {DYNORDER_FIELD: EMPTY, CFORMULA_FIELD: 1}).popitem()[1]
-    NoDOv2 = separateConfigs(allResults, {DYNORDER_FIELD: EMPTY, CFORMULA_FIELD: 2}).popitem()[1]
+    # NoDOv2 = separateConfigs(allResults, {DYNORDER_FIELD: EMPTY, CFORMULA_FIELD: 2}).popitem()[1]
 
     # scatterPlot(DOv1, DOv2, name = 'DO')
     # scatterPlot(NoDOv1, NoDOv2, name = 'NoDO')
