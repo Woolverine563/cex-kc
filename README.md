@@ -94,6 +94,8 @@ Multiple files containing benchmark paths have been provided for running the com
 - [small_test_benchmarks](small_test_benchmarks) contains a random subset of 20 benchmarks from [test_benchmarks](test_benchmarks) which can be used for verifying the results.
 - [single_test_benchmarks](single_test_benchmarks) contains a single benchmark path for running a smoke test to confirm whether anything is broken since this benchmark gets solved within a few seconds.
 
+One can also add new benchmarks but creating them in aiger or verilog format and adding them to this benchmarks folder being called, but note that in this case the docker image will have to be rebuilt before running the tool.
+
 
 ## Scripts
 
@@ -136,12 +138,12 @@ It is possible to effortlessly run the experiments on any personal laptop or des
 
 To replicate the results of the paper, depending on whether the experiments are to be run on all of the benchmarks, or just a small subset of them, the `docker run` command needs to be specified accordingly. 
 
-To run the experiments on all benchmarks, the following command can be used -
+To run the experiments on all benchmarks and replicate results of the paper, the following command can be used -
 ```
 sudo docker run cex_kc:latest -d all_benchmarks
 ```
 
-> On the specified resource requirements, this run might potentially take several days to be completed. It is therefore not recommended to run this on a personal computer.
+> Please note! On the specified resource requirements, this run might potentially take several days to be completed. 
 
 To run the experiments on just a subset of the benchmarks, the following command can be used -
 ```
