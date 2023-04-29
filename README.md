@@ -1,6 +1,6 @@
 # Counter-Example Guided Knowledge Compilation for Boolean Functional Synthesis
 
-This is the source code of a tool based on work reported in a paper by the same name to appear in the 35th International Conference on Computer Aided Verification, 2023.
+This is the source code of a tool based on work reported in the paper "Counterexample Guided Knowledge Compilation for Boolean Functional Synthesis" by S. Akshay, Supratik Chakraborty and Sahil Jain, to appear in Proceedings of the 35th International Conference on Computer Aided Verification, 2023.
 
 
 ## Documentation
