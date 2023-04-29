@@ -66,7 +66,8 @@ def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
 
 parser = argparse.ArgumentParser(
     description='''This python script runs the tool on each benchmark with the provided
-      parameters and generates results in the form of output, json and csv.''',
+      parameters and generates results in the form of output, json and csv.\n 
+      Options accepting multiple values need to provided in a comma separated sequence.''',
     epilog='''Note that passing multiple values for tool-specific arguments such as timeout etc
       will invoked multiple runs of the tool with each possible combination of these arguments''',
     usage='%(prog)s benchmarks [-h] [options]'  
@@ -80,8 +81,8 @@ parser.add_argument("-analysisdir", type=str, default=f'{commit}/analysis', help
 parser.add_argument("-nocompile", action='store_true', help="Should the tool be recompiled")
 parser.add_argument("-analyse", action='store_true', help="Should the tool be compiled with perf analysis")
 
-parser.add_argument("-timeout", type=lambda s: [int(item) for item in s.split(',')], default=[3600], help="Timeout for the tool on a single benchmark")
-parser.add_argument("-unatetimeout", type=lambda s: [int(item) for item in s.split(',')], default=[], help="Timeout for each unates processing stage")
+parser.add_argument("-timeout", type=lambda s: list(set([int(item) for item in s.split(',')])), default=[3600], help="Timeout for the tool on a single benchmark")
+parser.add_argument("-unatetimeout", type=lambda s: list(set([int(item) for item in s.split(',')])), default=[], help="Timeout for each unates processing stage")
 parser.add_argument("-depth", type=lambda s: list(set([int(item) for item in s.split(',')])), default=[20], help="Depth to be used for rectification")
 parser.add_argument("-rectify", type=lambda s: list(set([int(item) for item in s.split(',')])), default=[3], help="Rectification type to be used")
 parser.add_argument("-conflict", type=lambda s: list(set([int(item) for item in s.split(',')])), default=[2], help="Conflict type to be checked for")

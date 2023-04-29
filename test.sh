@@ -9,3 +9,4 @@ mkdir -p "${folder}/analysis/"
 benchmarks="small_test_benchmarks"
 python3 run_expts.py $benchmarks -resultdir "${folder}/results" -timeout 3600 -unatetimeout 3600 2>&1 > $folder/output
 python3 analysis.py "${folder}/results/results.json"
+sleep infinity # to ensure the docker container is not exited even though the run may have finished

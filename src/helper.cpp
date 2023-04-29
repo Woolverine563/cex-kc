@@ -6,7 +6,7 @@
 using namespace ABC_NAMESPACE;
 
 vector<int> nodeIdtoN;
-cxxopts::Options optParser("cex-kc");
+cxxopts::Options optParser("main");
 optionStruct options;
 
 std::ostream &operator<<(std::ostream &os, const ConflictCounterEx &cce)
