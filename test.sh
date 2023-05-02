@@ -13,9 +13,11 @@ done
 
 benchmarks=${1:-'small_test_benchmarks'}
 python3 run_expts.py $benchmarks -nocompile -noparallel -resultdir "${folder}/results" -timeout 3600 -unatetimeout 1000 -conflict '1,2' -dynamic '0,1' 2>&1
+echo "All experiments have now finished, analyses will be performed next."
 python3 analysis.py "${folder}/results/results.json"
+echo "All analyses have now finished."
 if [[ $2 = "retain" ]]
 then
-    echo "All experiments & analyses have now finished, the container will not exit unless the shell is killed/closed directly."
+    echo "The container has been retained, thus it will not exit unless the shell is killed/closed directly."
     tail -f /dev/null # to ensure the docker container is not exited
 fi

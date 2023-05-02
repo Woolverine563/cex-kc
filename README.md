@@ -65,11 +65,13 @@ Once the docker image has been built as mentioned above, the container can be si
 ```
 sudo docker run cex_kc:latest [single_test_benchmarks/small_test_benchmarks/test_benchmarks/all_benchmarks] [retain]
 ```
-
+It is to be noted that the tool itself is compiled when the container is run, and not during building the image. Compilation logs are therefore printed during the same before the experiments begin.
 By default, the experiments are run with `small_test_benchmarks`; and to run it with a different file, the filename needs to be provided with the `docker run` command, ie, `sudo docker run cex_kc:latest single_test_benchmarks`.
 Few such files containing different set of benchmarks have been provided, the details of which can be found in the [Benchmarks](#benchmarks) section.
 
 Furthermore, by default, the docker container exits immediately after the experiments finish execution. To retain the container and be able to inspect the generated results, logfiles and outputs; the filename as well as a second option to retain has to be provided, ie, `sudo docker run cex_kc:latest single_test_benchmarks retain` needs to be run. In this case, the container needs to be exited by closing the shell directly.
+
+For the docker run; every configuration - `DO`, `SO`, `CDO` and `CSO` have been assigned distinct output directories inside the `results` directory for the ease of distinguishment. Each of these directories further contain `OrderFiles`, `Unates`, and `Verilogs` sub-directories containing the final generated results. The logfiles, however, continue to be stored under the `outputs` directory directly under `results`. Every run corresponds to a distinct logfile, the path to which is known when performing the run.
 
 The exact sequence of steps to inspect the files is as follows -
 ```
@@ -79,6 +81,8 @@ sudo docker run cex_kc:latest single_test_benchmarks retain
 
 ## then, run from another shell
 sudo docker exec -it --workdir "/home/user/results/" <container_id OR container_name> /bin/bash
+$ ls
+
 ```
 
 For replicating the results reported in the paper, please skip to [Replicating the results](#replicating-the-results) section.
