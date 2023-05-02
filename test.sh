@@ -1,13 +1,18 @@
 #!/bin/bash
 folder="."
 mkdir -p "${folder}/results/outputs/"
-mkdir -p "${folder}/results/Unates/"
-mkdir -p "${folder}/results/UnatesOnly/"
-mkdir -p "${folder}/results/OrderFiles/"
-mkdir -p "${folder}/results/Verilogs/"
-mkdir -p "${folder}/analysis/"
+
+for f in "DO" "SO" "CDO" "CSO"; do
+    mkdir -p "${folder}/results/${f}/Unates/"
+    mkdir -p "${folder}/results/${f}/UnatesOnly/"
+    mkdir -p "${folder}/results/${f}/Unates/"
+    mkdir -p "${folder}/results/${f}/UnatesOnly/"
+    mkdir -p "${folder}/results/${f}/OrderFiles/"
+    mkdir -p "${folder}/results/${f}/Verilogs/"
+done
+
 benchmarks=${1:-'small_test_benchmarks'}
-python3 run_expts.py $benchmarks -resultdir "${folder}/results" -timeout 3600 -unatetimeout 1000 -conflict '1,2' -dynamic '0,1' 2>&1
+python3 run_expts.py $benchmarks -nocompile -noparallel -resultdir "${folder}/results" -timeout 3600 -unatetimeout 1000 -conflict '1,2' -dynamic '0,1' 2>&1
 python3 analysis.py "${folder}/results/results.json"
 if [[ $2 = "retain" ]]
 then

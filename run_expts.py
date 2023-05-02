@@ -20,7 +20,16 @@ def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
         args.append(k)
         args.append(str(v))
 
-    args.extend(["--out", arguments.resultdir])
+    outDataPath = arguments.resultdir + '/'
+    if D[CFORMULA_FIELD] == 2: 
+        outDataPath += 'C'
+    if D[DYNORDER_FIELD] == DYNORDER_FIELD:
+        outDataPath += 'DO'
+    else:
+        outDataPath += 'SO'
+    outDataPath += '/'
+
+    args.extend(["--out", outDataPath])
 
     bname = D[BNAME_FIELD]
     # default ordering is being used
@@ -29,11 +38,16 @@ def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
     D[HASH] = hash
 
     try:
+        outPutPath = f'{arguments.resultdir}/outputs/output-{hash}.txt'
+        # TODO : additional config tweaks should also be reported
+        print(f"Starting run of {bname.rsplit('/')[-1]} with order-file {D[VORDER_FIELD].rsplit('/')[-1]} & Default Configuration + Dynamic Ordering {'ON' if D[DYNORDER_FIELD] == DYNORDER_FIELD else 'OFF'} + Conflict Optimization {'ON' if D[CFORMULA_FIELD] == 2 else 'OFF'} with results to-be dumped at {outDataPath}")
         oup = check_output(args, stderr=STDOUT, timeout=D[TIMEOUT_FIELD] + 300) # 5 min extra timeout!
+        print(f"Finished run of {bname.rsplit('/')[-1]} with order-file {D[VORDER_FIELD].rsplit('/')[-1]} & Default Configuration + Dynamic Ordering {'ON' if D[DYNORDER_FIELD] == DYNORDER_FIELD else 'OFF'} + Conflict Optimization {'ON' if D[CFORMULA_FIELD] == 2 else 'OFF'}; the output of the run will be stored at {outPutPath}")
+        print()
         # Hard timeout of atmost twice
 
         os.makedirs(f'{arguments.resultdir}/outputs', exist_ok=True)
-        with open(f'{arguments.resultdir}/outputs/output-{hash}.txt','wb') as _:
+        with open(outPutPath,'wb') as _:
             _.write(oup)
 
         if (analyse):
@@ -146,9 +160,13 @@ for name, c, (r, d), u, s, dyn, fc, t, ut in product(benchmarks, conflict, v, un
 
 pool = Pool(processes=1 if arguments.noparallel else os.cpu_count())
 
+print(f"Starting execution of tool on {len(benchmarks)} benchmarks\n")
+
 pool = pool.starmap_async(run_code, runs)
 pool.wait()
 res = pool.get()
+
+print(f"Finished execution of tool on {len(benchmarks)} benchmarks\n")
 
 for (D, outputs, error) in res:
     row, bname, hash, d, d_all = process(D, outputs, error)

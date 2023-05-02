@@ -78,7 +78,7 @@ sudo docker run cex_kc:latest single_test_benchmarks retain
 ## wait for the experiments & analyses to be complete
 
 ## then, run from another shell
-sudo docker exec -it 
+sudo docker exec -it --workdir "/home/user/results/" <container_id OR container_name> /bin/bash
 ```
 
 For replicating the results reported in the paper, please skip to [Replicating the results](#replicating-the-results) section.
