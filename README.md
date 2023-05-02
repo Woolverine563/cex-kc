@@ -8,11 +8,11 @@ This is the source code of a tool based on work reported in the paper "Counterex
   - [Documentation](#documentation)
   - [Structure](#structure)
   - [Setup](#setup)
-    - [Using docker](#using-docker)
     - [Locally](#locally)
+    - [Using docker](#using-docker)
   - [Usage](#usage)
-    - [Using docker](#using-docker-1)
     - [Locally](#locally-1)
+    - [Using docker](#using-docker-1)
   - [Source code](#source-code)
   - [Benchmarks](#benchmarks)
   - [Scripts](#scripts)
@@ -30,6 +30,12 @@ Code from [bfss](https://github.com/BooleanFunctionalSynthesis/bfss), under lice
 
 ## Setup
 
+### Locally
+
+To setup the tool locally, it is recommended to use [setup.sh](setup.sh) as simply `./script.sh` for setting up all the required dependencies. `sudo` access to the system is required as this script installs several libraries such as `readline`, `boost-program-options` and `termcap`. This also compiles and sets up `abc`.
+
+The source code can then simply be compiled by using `make [BUILD=RELEASE/TEST/DEBUG]`. For performing experiments & benchmarking, it is recommended to build the tool with `BUILD=RELEASE`.
+
 ### Using docker
 
 The tool can be directly built as a docker image using the provided [Dockerfile](Dockerfile) using the following command :
@@ -37,20 +43,21 @@ The tool can be directly built as a docker image using the provided [Dockerfile]
 ```
 sudo docker build -t cex_kc:latest .
 ``` 
-This prepares the docker image but the tool is actually only built when running the container. 
+This prepares the docker image but the tool itself is only built when running the container. 
 
 > Note that building this docker image for the first time can take around 20 to 30 minutes. Rebuilding the docker image should usually not take more than 10 to 15 minutes.
+## Usage
 
 ### Locally
 
-If it is required to run the tool locally, it is recommended to use [setup.sh](setup.sh) for setting up [abc](dependencies/abc) appropriately. Additional libraries such as `readline`, `boost-program-options`, `termcap` etc also need to be installed in this case; which are usually either available or installable in any standard linux distribution.
+The built binary(tool) when compiled locally, resides at `./bin/main`. To use the tool, a benchmark, a preliminary ordering and an output folder are required to be specified as follows -
+```
+bin/main -b examples/example2.v -v examples/OrderFiles/example2_varstoelim.txt --out examples/ 
+```
 
-Also it is required to install `matplotlib` and `scipy` python3 packages for being able to use the [scripts](#scripts) & run the complete experiments on multiple benchmarks. 
+Details about other options can be checked out by using the `-h` help option. The benchmark can be provided in either verilog or aig format. Qdimacs benchmarks need to be converted to verilogs using [readCnf](src/readCnf.cpp).
 
-The source code can be compiled simply by using `make [BUILD=RELEASE/TEST/DEBUG]` after setting up abc.
-
-
-## Usage
+On invoking the tool as above, logging information is printed to the standard output and results regarding unates, final ordering, and final verilogs are respectively dumped in sub-folders `Unates`, `OrderFiles` and `Verilogs` inside the specified output folder. These sub-folders have to be created before invoking the tool.
 
 ### Using docker
 
@@ -62,21 +69,20 @@ sudo docker run cex_kc:latest [single_test_benchmarks/small_test_benchmarks/test
 By default, the experiments are run with `small_test_benchmarks`; and to run it with a different file, the filename needs to be provided with the `docker run` command, ie, `sudo docker run cex_kc:latest single_test_benchmarks`.
 Few such files containing different set of benchmarks have been provided, the details of which can be found in the [Benchmarks](#benchmarks) section.
 
-Furthermore, by default, the docker container exits immediately after the experiments finish execution. To retain the container and be able to inspect the generated results, logfiles and outputs; the filename as well as a second option to retain has to be provided, ie, `sudo docker run cex_kc:latest single_test_benchmarks retain`. In this case, the container needs to be exited by closing the shell directly.
+Furthermore, by default, the docker container exits immediately after the experiments finish execution. To retain the container and be able to inspect the generated results, logfiles and outputs; the filename as well as a second option to retain has to be provided, ie, `sudo docker run cex_kc:latest single_test_benchmarks retain` needs to be run. In this case, the container needs to be exited by closing the shell directly.
 
-### Locally
-
-The built binary(tool) when compiled locally, resides at `./bin/main` and requires specifying a benchmark along with a preliminary ordering to use and an output folder. Details about other options can be checked out by using the `-h` help option. The benchmark can be provided in either verilog or aig format. Qdimacs benchmarks would need to be converted to verilogs using [readCnf](src/readCnf.cpp).
-
+The exact sequence of steps to inspect the files is as follows -
 ```
-bin/main -b examples/example2.v -v examples/OrderFiles/example2_varstoelim.txt --out examples/ 
+sudo docker run cex_kc:latest single_test_benchmarks retain
+
+## wait for the experiments & analyses to be complete
+
+## then, run from another shell
+sudo docker exec -it 
 ```
-
-On invoking the tool as above, logging information is printed to the standard output and data regarding unates, final ordering etc are dumped in their respective directories inside the specified output folder. Subfolders within the output folder under the name of `OrderFiles`, `Unates`, `Verilogs` and `UnatesOnly` have to be created before invoking the tool. 
-
-
 
 For replicating the results reported in the paper, please skip to [Replicating the results](#replicating-the-results) section.
+
 
 ## Source code
 
@@ -93,8 +99,8 @@ There are total 602 such benchmarks on which the experiments have been performed
 Multiple files containing benchmark paths have been provided for running the complete set of experiments :
 - [all_benchmarks](all_benchmarks) contains a list of all 602 benchmarks.
 - [test_benchmarks](test_benchmarks) contains a list of some 304 benchmarks which were completely solved within half an hour under a specific choice of parameters and on hardware configuration described in the paper.
-- [small_test_benchmarks](small_test_benchmarks) contains a random subset of 20 benchmarks from [test_benchmarks](test_benchmarks) which can be used for verifying the results.
-- [single_test_benchmarks](single_test_benchmarks) contains a single benchmark path for running a smoke test to confirm whether anything is broken since this benchmark gets solved within a few seconds.
+- [small_test_benchmarks](small_test_benchmarks) contains a small subset of 15 benchmarks from [test_benchmarks](test_benchmarks) which can be used for verifying the results reasonable quickly.
+- [single_test_benchmarks](single_test_benchmarks) contains a single benchmark for running a smoke test to confirm whether anything is broken since this benchmark gets solved within a few seconds.
 
 One can also add new benchmarks by creating them in aiger or verilog format and adding them to this benchmarks folder, but note that in this case the docker image will have to be rebuilt before running the tool.
 

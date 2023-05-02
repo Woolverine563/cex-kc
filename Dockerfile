@@ -9,6 +9,6 @@ WORKDIR /home/user
 
 COPY --chown=user . .
  
-RUN cd dependencies/abc && make libabc.a -j4
+RUN cd dependencies/abc && make libabc.a -j $(nproc)
 
 ENTRYPOINT ["./test.sh"]

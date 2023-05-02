@@ -1,5 +1,5 @@
 #!/bin/bash
-folder=`git rev-parse --short=6 HEAD`
+folder="."
 mkdir -p "${folder}/results/outputs/"
 mkdir -p "${folder}/results/Unates/"
 mkdir -p "${folder}/results/UnatesOnly/"
@@ -11,5 +11,6 @@ python3 run_expts.py $benchmarks -resultdir "${folder}/results" -timeout 3600 -u
 python3 analysis.py "${folder}/results/results.json"
 if [[ $2 = "retain" ]]
 then
-    sleep infinity # to ensure the docker container is not exited even though the run may have finished
+    echo "All experiments & analyses have now finished, the container will not exit unless the shell is killed/closed directly."
+    tail -f /dev/null # to ensure the docker container is not exited
 fi

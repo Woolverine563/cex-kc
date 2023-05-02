@@ -1,12 +1,10 @@
-from ast import Str
 from collections import defaultdict
-from hashlib import md5
 import json, sys
 from statistics import mean
 import os
 import copy
 from typing import Any, Dict, List
-from scipy.stats import describe, gmean
+from scipy.stats import gmean
 from util import *
 import itertools
 import matplotlib.pyplot as plt
@@ -15,89 +13,8 @@ from subprocess import STDOUT, check_output, run
 MAN_TIMEOUT = 3600 + 100 # slack
 PLOT_CNT = 0
 
-class Config:
-    def __init__(self, config: Dict[str, str]):
-        self.__dict__.update(config)
-
-    def bool_field(self, field: str) -> bool:
-        assert field in BOOL_FIELDS
-        return (getattr(self, field) == field)
-
-    def keys(self):
-        return self.__dict__.keys()
-
-    def match(self, fields: Dict[str, Any]) -> bool:
-        for f, v in fields.items():
-            ans = self.__dict__.get(f, None)
-            if (ans is None) or (ans != v):
-                return False
-        return True
-
-    def __eq__(self, __o):
-        return self.__dict__ == __o.__dict__
-
-    def __str__(self):
-        return f"Config({self.__dict__})"
-
-    def __repr__(self) -> str:
-        return self.__str__()
-
-    def __hash__(self):
-        return str(self).__hash__()
-
-    def hash(self):
-        return md5(str(self).encode()).hexdigest()
-
-class Result:
-    def __init__(self, data: dict):
-        self.benchmark: str = data[BNAME]
-        self.orderfile: str = data[VORDER]
-        self.hash: str = data.pop(HASH)
-        self.config = Config(data["config"])
-
-        self.isSolved: bool = data["isSolved"]
-        self.results: Dict[str, Any] = data["results"]
-        self.files: Dict[str, Any] = data["files"]
-
-        self.error: str = data["results"][ERR]
-
-    def keys(self):
-        return list(self.config.keys())
-
-    def matches(self, config):
-        return config == self.config
-
-    def extract(self, fields):
-        d1, d2 = {}, copy.deepcopy(self)
-
-        for f in fields:
-            d1[f] = d2.config.__dict__.pop(f)
-
-        return Config(d1), d2
-
-    def __str__(self) -> str:
-        return f"Result([{'V' if self.isSolved else 'X'}] ({self.benchmark},{self.orderfile}) : {self.config} -> {self.results})"
-
-    def __repr__(self) -> str:
-        return self.__str__()
-
-    def updateTimeout(self, timeout=None):
-        if (timeout is not None) and self.isSolved and (float(self.results[TOT_TIME]) > timeout):
-            self.isSolved = False
-
-    def isAllU(self):
-        return self.isSolved and (int(self.results[TOT_OUTPUTS]) == 0)
-    def isNoConf(self):
-        return self.isSolved and (not self.isAllU()) and (int(self.results[NUM_CEX]) == 0)
-    def isNoU(self):
-        return self.isSolved and (int(self.results[FIN_UN]) == 0)   
-    def isFixedConf(self):
-        return self.isSolved and (not self.isNoConf()) and (not self.isAllU())
-    def isSomeU(self):
-        return self.isSolved and (not self.isAllU()) and (not self.isNoU())
-
-    def analyse(self) -> Dict[str, bool]:
-        return {ALLUNATES: self.isAllU(), NOCONF: self.isNoConf(), NOU: self.isNoU(), FIXEDCONF: self.isFixedConf() , SOMEU: self.isSomeU()}
+def print_aligned(field: str, value: str):
+    print(f'{field:<40} -> {value:>5}')
 
 def separateConfigs(results: List[Result], filterFields: Dict[str, Any] = {}):
     data: Dict[Config, List[Result]] = defaultdict(list)
@@ -154,7 +71,7 @@ def genericTotalAnalysis(results: List[Result]):
         s = set([(r.benchmark, r.orderfile) for r in filter(lambda x : x.isSolved, v)])
         total.update(s)
 
-    print(f"Total benchmarks solved across any config: {len(total)} out of {max([len(v) for v in data.values()])}")
+    print(f"{'Total benchmarks solved across all configurations':<50} -> {len(total)} out of {max([len(v) for v in data.values()])}")
 
     err_results = list(filter(lambda x : x.results["ERROR"] != EMPTY, itertools.chain(*data.values())))
 
@@ -163,16 +80,16 @@ def genericTotalAnalysis(results: List[Result]):
 
     other_errs = [x.results["ERROR"] for x in filter(lambda x : 'timed out' not in x.results["ERROR"], err_results)]
 
-    print(f"Errored : {len(errors)} errors across {len(set(errors))} unique benchmarks")
-    print(f"Hard Timeouts : {len(timeouts)} timeouts across {len(set(timeouts))} unique benchmarks out of above")
-    print(f"Other errors : {other_errs}")
+    print(f"{'Errored':<50} -> {len(errors)} errors across {len(set(errors))} unique benchmarks")
+    print(f"{'Hard Timeouts':<50} -> {len(timeouts)} timeouts across {len(set(timeouts))} unique benchmarks out of above")
+    print(f"{'Other errors':<50} -> {other_errs}")
     print()
     print()
 
 def genericAnalysis(c: Config, results: List[Result], file: str):
 
     cnt = len(list(filter(lambda x : x.isSolved, results)))
-    print(f"Fully Solved : {cnt}")
+    print_aligned('Fully Solved', f'{cnt}')
 
     par2 = 0
     avg = 0
@@ -185,36 +102,32 @@ def genericAnalysis(c: Config, results: List[Result], file: str):
 
     par2 /= len(results)
     avg /= len(list(filter(lambda s: s.isSolved, results)))
-    print(f"PAR2 Score : {par2:.2f}")
-    print(f"Avg Solved Runtime : {avg:.2f}")
+    print_aligned('PAR2 Score', f'{par2:.2f}')
+    print_aligned("Avg Solved Runtime",f"{avg:.2f}")
 
     d = defaultdict(set)
 
     for r in results:
         analysDict = r.analyse()
         for x,y in analysDict.items():
-            if (y):
-                d[x].add(r)
-        # for f, _ in r.files.items():
-        #     d[f] = d.get(f, set())
-        #     d[f].add(r)
+            d[x].update(set([r] if y else []))
     
     assert len(set(d.keys()).difference(set(FILENAMES))) == 0
 
     folder = f'{file.rsplit("/", 1)[0]}/{c.hash()}'
     os.makedirs(folder, exist_ok=True)
 
-    print("[")
-    for k1, v1 in sorted(d.items()):
-        print(f"\t{k1} -> {len(v1)}")
+    print()
+    for k1 in ORDER_TYPES:
+        v1 = d[k1]
+        print_aligned(k1, f'{len(v1)}')
         with open(f'{folder}/{k1}', 'w') as f:
             f.writelines([f'{x.benchmark}\n' for x in v1])
 
-    print(f"\t{FIXEDCONF} \u22c2 {SOMEU} -> {len(d[FIXEDCONF].intersection(d[SOMEU]))}")        
-    print(f"\t{NOCONF} \u22c2 {SOMEU} -> {len(d[NOCONF].intersection(d[SOMEU]))}")
-    print(f"\t{FIXEDCONF} \u22c2 {NOU} -> {len(d[FIXEDCONF].intersection(d[NOU]))}")
-    print(f"\t{NOCONF} \u22c2 {NOU} -> {len(d[NOCONF].intersection(d[NOU]))}")
-    print("]")
+    print_aligned(f"{FIXEDCONF} \u22c2 {SOMEU}", f"{len(d[FIXEDCONF].intersection(d[SOMEU]))}")        
+    print_aligned(f"{NOCONF} \u22c2 {SOMEU}", f"{len(d[NOCONF].intersection(d[SOMEU]))}")
+    print_aligned(f"{FIXEDCONF} \u22c2 {NOU}", f"{len(d[FIXEDCONF].intersection(d[NOU]))}")
+    print_aligned(f"{NOCONF} \u22c2 {NOU}", f"{len(d[NOCONF].intersection(d[NOU]))}")
     print()
 
 def beyondManthan(c: Config, results: List[Result]):
@@ -229,14 +142,7 @@ def beyondManthan(c: Config, results: List[Result]):
 
     # we are running with single config for now...
 
-    print(f'Beyond Manthan (not allUnates): {len(list(res[False]))} benchmarks')
-    for b in res[False]:
-        print(b)
-    print()
-
-    print(f'Beyond Manthan (allUnates): {len(list(res[True]))} benchmarks')
-    for b in res[True]:
-        print(b)
+    print(f'Number of benchmarks solved which were not solved by Manthan -> {len(res[True]) + len(res[False])}')
     print()
 
 def ratioOutputsSolved(c: Config, results: List[Result]):
@@ -261,18 +167,19 @@ def ratioOutputsSolved(c: Config, results: List[Result]):
     xvalues = [x[0] for x in bar1]
     y1 = [x[1] for x in bar1]
 
-    print(f'Outputs fixed v/s Total outputs ->')
-    print(f'Mean ratio (w 0s) : {mean(y1):.2f}')
-    print(f'Mean ratio (wo 0s) : {mean([_ for _ in y1 if _ != 0]):.2f}')
-    print(f'Geometric mean ratio : {gmean([_ for _ in y1 if _ != 0]):.2f}')
+    print(f'Outputs fixed v/s Total outputs :')
+    print_aligned(f'Mean ratio (w 0s)', f'{mean(y1):.2f}')
+    print_aligned(f'Mean ratio (wo 0s)', f'{mean([_ for _ in y1 if _ != 0]):.2f}')
+    print_aligned(f'Geometric mean ratio', f'{gmean([_ for _ in y1 if _ != 0]):.2f}')
     print()
     
     almostSolved = list(filter(lambda t: 0.9 <= t[1] <= 1.0, bar1))
     print(f"Almost solved {len(almostSolved)} benchmarks -> \n")
     for x in almostSolved:
-        print(f'Benchmark : {x[0]}')
-        print(f'Ratio : {x[2]} / {x[3]} = {x[1]:.2f}')
-        print(f'Unates : {x[4]} init, {x[5]} fin')
+        print_aligned(f'Benchmark', f'{x[0]}')
+        print_aligned(f'Ratio', f'{x[2]}/{x[3]} = {x[1]:.2f}')
+        print_aligned(f'Initial Unates', f'{x[4]}')
+        print_aligned(f'Final Unates', f'{x[5]}')
         print()
 
     plt.figure()
@@ -385,18 +292,29 @@ if __name__ == "__main__":
 
         results = [Result(x) for x in data]
         allResults.extend(results)
-        print('='*100)
-        print(f"{file}")
-        print('='*100)
+        print('='*120)
+        print(f"Results JSON : {file}")
+        print('='*120)
         print('\n')
 
         genericTotalAnalysis(results)
         resDict = separateConfigs(results)
 
         for c, res in resDict.items():
-            print('-'*100)
-            print(f"{c} -> {c.hash()}")
-            print('-'*100)
+            print('-'*120)
+            # print(f"{c} -> {c.hash()}")
+            if c.match({DYNORDER_FIELD: DYNORDER_FIELD, CFORMULA_FIELD: 1}) :
+                print("Default Configuration + Dynamic Ordering ON + Conflict Optimization OFF - DO")
+            elif c.match({DYNORDER_FIELD: EMPTY, CFORMULA_FIELD: 1}) :
+                print("Default Configuration + Dynamic Ordering OFF + Conflict Optimization OFF - SO")    
+            elif c.match({DYNORDER_FIELD: DYNORDER_FIELD, CFORMULA_FIELD: 2}) :
+                print("Default Configuration + Dynamic Ordering ON + Conflict Optimization ON - CDO")
+            elif c.match({DYNORDER_FIELD: EMPTY, CFORMULA_FIELD: 2}):
+                print("Default Configuration + Dynamic Ordering OFF + Conflict Optimization ON - CSO")
+            else:
+                # TODO : Address this more modularly for other possible config tweaks
+                print("Non-default Configuration")
+            print('-'*120)
             genericAnalysis(c, res, file)
             beyondManthan(c, res)
             ratioOutputsSolved(c, res)

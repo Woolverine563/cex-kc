@@ -1,7 +1,6 @@
+sudo apt-get update 
+sudo apt-get install -y python3-pip libreadline-dev libncurses5-dev libboost-program-options-dev
+pip3 install matplotlib scipy
 git submodule update --init
-git submodule update --recursive --remote
-pushd .
 cd dependencies/abc
-git apply ../abc.patch
-make libabc.a -j4
-popd
+make libabc.a -j $(nproc)

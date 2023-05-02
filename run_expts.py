@@ -80,6 +80,7 @@ parser.add_argument("-resultdir", type=str, default=f'{commit}/results', help="P
 parser.add_argument("-analysisdir", type=str, default=f'{commit}/analysis', help="Path to perf analysis folder")
 parser.add_argument("-nocompile", action='store_true', help="Should the tool be recompiled")
 parser.add_argument("-analyse", action='store_true', help="Should the tool be compiled with perf analysis")
+parser.add_argument("-noparallel", action='store_true', help="Should the runs all be fired sequentially")
 
 parser.add_argument("-timeout", type=lambda s: list(set([int(item) for item in s.split(',')])), default=[3600], help="Timeout for the tool on a single benchmark")
 parser.add_argument("-unatetimeout", type=lambda s: list(set([int(item) for item in s.split(',')])), default=[], help="Timeout for each unates processing stage")
@@ -143,7 +144,7 @@ for name, c, (r, d), u, s, dyn, fc, t, ut in product(benchmarks, conflict, v, un
     arg = [name, order, c, r, d, t, ut]
     runs.append((bool_arg, arg, arguments.analyse, arguments.analysisdir))
 
-pool = Pool() # processes=(os.cpu_count()*3)//4) # 2 cores free, should be fine
+pool = Pool(processes=1 if arguments.noparallel else os.cpu_count())
 
 pool = pool.starmap_async(run_code, runs)
 pool.wait()
