@@ -15,6 +15,7 @@ This is the source code of a tool based on work reported in the paper "Counterex
     - [Using docker](#using-docker-1)
   - [Source code](#source-code)
   - [Benchmarks](#benchmarks)
+    - [Modifying the benchmarks](#modifying-the-benchmarks)
   - [Scripts](#scripts)
     - [Running the experiments](#running-the-experiments)
     - [Analysing the outputs](#analysing-the-outputs)
@@ -37,6 +38,8 @@ To setup the tool locally, it is recommended to use [setup.sh](setup.sh) with `s
 sudo ./setup.sh
 ``` 
 for setting up all the required dependencies. `sudo` access to the system is required as this script installs several libraries such as `readline`, `boost-program-options` and `termcap`. This also compiles and sets up `abc`.
+
+> These instructions have been verified on a Ubuntu-20.04 machine, and it is recommended to use the same. These may not work on other operating systems.
 
 The source code can then simply be compiled by using 
 ```
@@ -63,6 +66,7 @@ This prepares the docker image but the tool itself is only built when running th
 
 The built binary(tool) when compiled locally, resides at `./bin/main`. To use the tool, a benchmark, a preliminary ordering and an output folder are required to be specified as follows -
 ```
+mkdir -p examples/Unates examples/OrderFiles/ examples/Verilogs # these need to be pre-created
 bin/main -b examples/example2.v -v examples/OrderFiles/example2_varstoelim.txt --out examples/ 
 ```
 
@@ -100,8 +104,13 @@ sudo docker run cex_kc:latest single_test_benchmarks retain
 
 ## then, run from another shell
 sudo docker exec -it --workdir "/home/user/results/" <container_id OR container_name> /bin/bash
-$ ls
+# to obtain container_id or container_name, use the following command
+sudo docker ps
 
+# the above docker exec command should start a shell within the container at `/home/user/results/` 
+$ ls
+CDO/ CSO/ DO/ SO/ outputs/ results.json runs.csv
+# these files/folders should show up on invoking `ls`, there might be other folders as well
 ```
 
 For replicating the results reported in the paper, please skip to [Replicating the results](#replicating-the-results) section.
@@ -120,12 +129,18 @@ The benchmarks used for experimentation are the same as those used in [bfss](htt
 There are 602 such benchmarks on which the experiments have been performed.  
 
 Multiple files containing benchmark paths have been provided for running the complete set of experiments :
-- [all_benchmarks](all_benchmarks) contains a list of all 602 benchmarks.
-- [test_benchmarks](test_benchmarks) contains a list of some 304 benchmarks which were completely solved within half an hour under a specific choice of parameters and on hardware configuration described in the paper.
-- [small_test_benchmarks](small_test_benchmarks) contains a small subset of 15 benchmarks from [test_benchmarks](test_benchmarks) which can be used for verifying the results reasonable quickly.
+- [all_benchmarks](all_benchmarks) contains a list of all 602 benchmarks. Running them on a single core machine would take a few weeks with the timeout of an hour.
+- [test_benchmarks](test_benchmarks) contains a list of some 304 benchmarks which were individually solved within half an hour under default configuration and on hardware as described in the paper. Running them on a single core machine however could still take a couple of days.
+- [small_test_benchmarks](small_test_benchmarks) contains a small subset of 14 benchmarks from [test_benchmarks](test_benchmarks) which can be used for verifying the results reasonably quickly, within less than 5-10 minutes.
 - [single_test_benchmarks](single_test_benchmarks) contains a single benchmark for running a smoke test to confirm whether anything is broken, this benchmark runs within say a second.
 
-One can also add new benchmarks by creating them in aiger or verilog format and adding them to the benchmarks folder.  One can also add/delete/modify entries in the four given files (all_benchmarks/test_benchmarks/small_test_benchmarks/single_test_benchmarks) for purposes of experimentation. However, in these cases the docker image has to be rebuilt using 
+### Modifying the benchmarks
+
+One can also add new benchmarks by creating them in aiger or verilog format and adding them to the benchmarks folder, with their corresponding ordering file within a sub-directory by the name of `OrderFiles` in the same folder, similar to the existing benchmarks. The path to the same will have to be provided in either one of the four given files (all_benchmarks/test_benchmarks/small_test_benchmarks/single_test_benchmarks).
+
+One can also add/delete/modify entries in the four given files (all_benchmarks/test_benchmarks/small_test_benchmarks/single_test_benchmarks) for purposes of experimentation. 
+
+However, in these cases the docker image has to be rebuilt using 
 ```
 sudo docker build -t cex_kc:latest .
 ```
@@ -185,4 +200,4 @@ To run the experiments on just a subset of the benchmarks, the following command
 sudo docker run cex_kc:latest small_test_benchmarks
 ```
 
-> This run should take atmost a couple of hours on the resource requirements stated above.
+> This run should take atmost five to ten minutes on the resource requirements stated above.
