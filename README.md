@@ -32,9 +32,17 @@ Code from [bfss](https://github.com/BooleanFunctionalSynthesis/bfss), under lice
 
 ### Locally
 
-To setup the tool locally, it is recommended to use [setup.sh](setup.sh) as simply `./script.sh` for setting up all the required dependencies. `sudo` access to the system is required as this script installs several libraries such as `readline`, `boost-program-options` and `termcap`. This also compiles and sets up `abc`.
+To setup the tool locally, it is recommended to use [setup.sh](setup.sh) with `sudo` privileges. Run the following command from the shell prompt
+```
+sudo ./setup.sh
+``` 
+for setting up all the required dependencies. `sudo` access to the system is required as this script installs several libraries such as `readline`, `boost-program-options` and `termcap`. This also compiles and sets up `abc`.
 
-The source code can then simply be compiled by using `make [BUILD=RELEASE/TEST/DEBUG]`. For performing experiments & benchmarking, it is recommended to build the tool with `BUILD=RELEASE`.
+The source code can then simply be compiled by using 
+```
+make [BUILD=RELEASE/TEST/DEBUG]
+``` 
+For performing experiments & benchmarking, it is recommended to build the tool with `BUILD=RELEASE`.
 
 ### Using docker
 
@@ -43,11 +51,12 @@ The tool can be directly built as a docker image using the provided [Dockerfile]
 ```
 sudo docker build -t cex_kc:latest .
 ``` 
-This prepares the docker image but the tool itself is only built when running the container. 
+This prepares the docker image but the tool itself is only built when running the container (see [Using docker](#using-docker-1) below)
 
 > A few warning messages in red may flash by during the docker build process.  These are due to some legacy code in the [abc](https://github.com/jsahil730/abc) library and can be safely ignored.
 
 > Note that building this docker image for the first time can take around 20 to 30 minutes. Rebuilding the docker image should usually not take more than 10 to 15 minutes.
+
 ## Usage
 
 ### Locally
