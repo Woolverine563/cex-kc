@@ -66,7 +66,10 @@ Once the docker image has been built as mentioned above, the container can be si
 sudo docker run cex_kc:latest [single_test_benchmarks/small_test_benchmarks/test_benchmarks/all_benchmarks] [retain]
 ```
 It is to be noted that the tool itself is compiled when the container is run, and not during building the image. Compilation logs are therefore printed during the same before the experiments begin.
-By default, the experiments are run with `small_test_benchmarks`; and to run it with a different file, the filename needs to be provided with the `docker run` command, ie, `sudo docker run cex_kc:latest single_test_benchmarks`.
+By default, the experiments are run with `small_test_benchmarks`; and to run it with a different file, the filename needs to be provided with the `docker run` command, for example, 
+```
+sudo docker run cex_kc:latest single_test_benchmarks
+```
 Few such files containing different set of benchmarks have been provided, the details of which can be found in the [Benchmarks](#benchmarks) section.
 
 Furthermore, by default, the docker container exits immediately after the experiments finish execution. To retain the container and be able to inspect the generated results, logfiles and outputs; the filename as well as a second option to retain has to be provided, ie, `sudo docker run cex_kc:latest single_test_benchmarks retain` needs to be run. In this case, the container needs to be exited by closing the shell directly.
