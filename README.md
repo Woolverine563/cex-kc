@@ -12,6 +12,7 @@ This is the source code of a tool based on work reported in the paper "Counterex
     - [Using docker](#using-docker)
   - [Usage](#usage)
     - [Locally](#locally-1)
+      - [Configuration Details](#configuration-details)
     - [Using docker](#using-docker-1)
   - [Source code](#source-code)
   - [Benchmarks](#benchmarks)
@@ -73,6 +74,31 @@ bin/main -b examples/example2.v -v examples/OrderFiles/example2_varstoelim.txt -
 Details about other options can be checked out by using the `-h` help option. The benchmark can be provided in either verilog or aig format. Qdimacs benchmarks need to be converted to verilogs using [readCnf](src/readCnf.cpp).
 
 On invoking the tool as above, logging information is printed to the standard output and results regarding unates, final ordering, and final verilogs are respectively dumped in sub-folders `Unates`, `OrderFiles` and `Verilogs` inside the specified output folder. These sub-folders have to be created before invoking the tool.
+
+#### Configuration Details
+
+The current default configuration for invoking the tool is as follows -
+```
+Conflict Optimization         - ON
+Dynamic Ordering              - OFF
+Unates                        - OFF
+Rectify Procedure version     - 3
+Depth (for rectify procedure) - 20
+Timeout                       - 1 hour
+Unate Timeout                 - 10 minutes
+```
+
+The configuration used in the experiments however deviates from this above default on the following -
+- Conflict Optimization is experimented with both ON & OFF
+- Dynamic Ordering has been experimented with both ON & OFF
+- Unates have been kept ON
+- Unate Timeout has been set to 1000 seconds
+
+To invoked the same configuration, the following command needs to be used instead -
+```
+bin/main -b examples/example2.v -v examples/OrderFiles/example2_varstoelim.txt --out examples/ --conflictCheck (1/2) [--dynamicOrdering] --unate --unateTimeout 1000
+```
+Here `--conflictCheck 1` corresponds to Conflict Optimization OFF, `--conflictCheck 2` corresponds to Conflict Optimization ON, and specifying `--dynamicOrdering` turns Dynamic Ordering ON while not specifying keeps it OFF.
 
 ### Using docker
 

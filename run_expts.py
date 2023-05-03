@@ -40,9 +40,9 @@ def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
     try:
         outPutPath = f'{arguments.resultdir}/outputs/output-{hash}.txt'
         # TODO : additional config tweaks should also be reported
-        print(f"Starting run of {bname.rsplit('/')[-1]} with order-file {D[VORDER_FIELD].rsplit('/')[-1]} & Default Configuration + Dynamic Ordering {'ON' if D[DYNORDER_FIELD] == DYNORDER_FIELD else 'OFF'} + Conflict Optimization {'ON' if D[CFORMULA_FIELD] == 2 else 'OFF'} with results to-be dumped at {outDataPath}")
+        print(f"Starting run of {bname.rsplit('/')[-1]} with order-file {D[VORDER_FIELD].rsplit('/')[-1]} & Default Configuration + Unate ON + Dynamic Ordering {'ON' if D[DYNORDER_FIELD] == DYNORDER_FIELD else 'OFF'} + Conflict Optimization {'ON' if D[CFORMULA_FIELD] == 2 else 'OFF'} with results to-be dumped at {outDataPath}")
         oup = check_output(args, stderr=STDOUT, timeout=D[TIMEOUT_FIELD] + 300) # 5 min extra timeout!
-        print(f"Finished run of {bname.rsplit('/')[-1]} with order-file {D[VORDER_FIELD].rsplit('/')[-1]} & Default Configuration + Dynamic Ordering {'ON' if D[DYNORDER_FIELD] == DYNORDER_FIELD else 'OFF'} + Conflict Optimization {'ON' if D[CFORMULA_FIELD] == 2 else 'OFF'}; the output of the run will be stored at {outPutPath}")
+        print(f"Finished run of {bname.rsplit('/')[-1]} with order-file {D[VORDER_FIELD].rsplit('/')[-1]} & Default Configuration + Unate ON + Dynamic Ordering {'ON' if D[DYNORDER_FIELD] == DYNORDER_FIELD else 'OFF'} + Conflict Optimization {'ON' if D[CFORMULA_FIELD] == 2 else 'OFF'}; the output of the run will be stored at {outPutPath}")
         print()
         # Hard timeout of atmost twice
 

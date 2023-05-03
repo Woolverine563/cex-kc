@@ -304,13 +304,13 @@ if __name__ == "__main__":
             print('-'*120)
             # print(f"{c} -> {c.hash()}")
             if c.match({DYNORDER_FIELD: DYNORDER_FIELD, CFORMULA_FIELD: 1}) :
-                print("Default Configuration + Dynamic Ordering ON + Conflict Optimization OFF - DO")
+                print("Default Configuration + Unate ON + Dynamic Ordering ON + Conflict Optimization OFF - DO")
             elif c.match({DYNORDER_FIELD: EMPTY, CFORMULA_FIELD: 1}) :
-                print("Default Configuration + Dynamic Ordering OFF + Conflict Optimization OFF - SO")    
+                print("Default Configuration + Unate ON + Dynamic Ordering OFF + Conflict Optimization OFF - SO")    
             elif c.match({DYNORDER_FIELD: DYNORDER_FIELD, CFORMULA_FIELD: 2}) :
-                print("Default Configuration + Dynamic Ordering ON + Conflict Optimization ON - CDO")
+                print("Default Configuration + Unate ON + Dynamic Ordering ON + Conflict Optimization ON - CDO")
             elif c.match({DYNORDER_FIELD: EMPTY, CFORMULA_FIELD: 2}):
-                print("Default Configuration + Dynamic Ordering OFF + Conflict Optimization ON - CSO")
+                print("Default Configuration + Unate ON + Dynamic Ordering OFF + Conflict Optimization ON - CSO")
             else:
                 # TODO : Address this more modularly for other possible config tweaks
                 print("Non-default Configuration")
