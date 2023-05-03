@@ -110,8 +110,14 @@ $ sudo docker exec -it --workdir "/home/user/results/" <container_id OR containe
 
 # the above docker exec command should start a shell within the container at `/home/user/results/` 
 $ ls
-CDO/ CSO/ DO/ SO/ outputs/ results.json runs.csv
-# these files/folders should show up on invoking `ls`, there might be other folders as well and may be ignored
+# CDO/ CSO/ DO/ SO/ outputs/ results.json runs.csv
+# the above files/folders should show up on invoking `ls`, there might be other folders as well and may be ignored
+# Each of these correspond to an experiment with a particular configuration
+# CDO: Dynamic ordering with conflict optimization
+# CSO: Static ordering with conflict optimization
+# DO: Dynamic ordering without conflict optimization
+# SO: Static ordering without conflict optimization
+# To understand these terms, refer to Section 7 of our paper.
 
 # Finally, after inspecting the log files etc, we can stop and remove the container in which the experiment was run
 $ sudo docker stop container_id
@@ -196,7 +202,7 @@ It is possible to effortlessly run the experiments on any personal laptop or des
 
 To replicate the results of the paper, depending on whether the experiments are to be run on all of the benchmarks, or just a small subset of them, the `docker run` command needs to be specified accordingly. 
 
-To run the experiments on all benchmarks and replicate results of the paper, the following command can be used -
+To run the experiments on all benchmarks and replicate results of the paper (Fig. 4 in Section 7), the following command can be used -
 ```
 sudo docker run cex_kc:latest all_benchmarks
 ```
