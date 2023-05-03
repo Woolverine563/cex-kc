@@ -45,7 +45,7 @@ sudo docker build -t cex_kc:latest .
 ``` 
 This prepares the docker image but the tool itself is only built when running the container. 
 
-> A few warning messages in red may flash by during the docker build process.  These are due to some incompatibilities of legacy code and can be safely ignored.
+> A few warning messages in red may flash by during the docker build process.  These are due to some legacy code in the [abc](https://github.com/jsahil730/abc) library and can be safely ignored.
 
 > Note that building this docker image for the first time can take around 20 to 30 minutes. Rebuilding the docker image should usually not take more than 10 to 15 minutes.
 ## Usage
