@@ -45,6 +45,8 @@ sudo docker build -t cex_kc:latest .
 ``` 
 This prepares the docker image but the tool itself is only built when running the container. 
 
+> A few warning messages in red may flash by during the docker build process.  These are due to some incompatibilities of legacy code and can be safely ignored.
+
 > Note that building this docker image for the first time can take around 20 to 30 minutes. Rebuilding the docker image should usually not take more than 10 to 15 minutes.
 ## Usage
 
@@ -66,13 +68,18 @@ Once the docker image has been built as mentioned above, the container can be si
 sudo docker run cex_kc:latest [single_test_benchmarks/small_test_benchmarks/test_benchmarks/all_benchmarks] [retain]
 ```
 It is to be noted that the tool itself is compiled when the container is run, and not during building the image. Compilation logs are therefore printed during the same before the experiments begin.
+
 By default, the experiments are run with `small_test_benchmarks`; and to run it with a different file, the filename needs to be provided with the `docker run` command, for example, 
 ```
 sudo docker run cex_kc:latest single_test_benchmarks
 ```
 Few such files containing different set of benchmarks have been provided, the details of which can be found in the [Benchmarks](#benchmarks) section.
 
-Furthermore, by default, the docker container exits immediately after the experiments finish execution. To retain the container and be able to inspect the generated results, logfiles and outputs; the filename as well as a second option to retain has to be provided, ie, `sudo docker run cex_kc:latest single_test_benchmarks retain` needs to be run. In this case, the container needs to be exited by closing the shell directly.
+Furthermore, by default, the docker container exits immediately after the experiments finish execution, printing the statistics of the result in the format of the table given in Fig. 4 of the paper. To retain the container and be able to inspect the generated logfiles and other output files, an additional option to retain the container must be provided at the end of the docker run command, for example, 
+```
+sudo docker run cex_kc:latest single_test_benchmarks retain
+```
+needs to be run to retain the container. In this case, the container must be exited by closing the shell directly.
 
 For the docker run; every configuration - `DO`, `SO`, `CDO` and `CSO` have been assigned distinct output directories inside the `results` directory for the ease of distinguishment. Each of these directories further contain `OrderFiles`, `Unates`, and `Verilogs` sub-directories containing the final generated results. The logfiles, however, continue to be stored under the `outputs` directory directly under `results`. Every run corresponds to a distinct logfile, the path to which is known when performing the run.
 
@@ -100,16 +107,20 @@ Few of the interesting functions in the file include - [`getConflictFormulaCNF`]
 
 ## Benchmarks
 
-The benchmarks used for experimentation have been borrowed from [bfss](https://github.com/BooleanFunctionalSynthesis/bfss/tree/master/benchmarks) as well; and can be found in the [benchmarks](benchmarks) directory.
-There are total 602 such benchmarks on which the experiments have been performed.  
+The benchmarks used for experimentation are the same as those used in [bfss](https://github.com/BooleanFunctionalSynthesis/bfss/tree/master/benchmarks).  These benchmarks can be found in the [benchmarks](benchmarks) directory.  The documentation for these benchmarks, as available in [bfss](https://github.com/BooleanFunctionalSynthesis/bfss/tree/master/benchmarks) has also been replicated here for convenience.
+There are 602 such benchmarks on which the experiments have been performed.  
 
 Multiple files containing benchmark paths have been provided for running the complete set of experiments :
 - [all_benchmarks](all_benchmarks) contains a list of all 602 benchmarks.
 - [test_benchmarks](test_benchmarks) contains a list of some 304 benchmarks which were completely solved within half an hour under a specific choice of parameters and on hardware configuration described in the paper.
-- [small_test_benchmarks](small_test_benchmarks) contains a small subset of 15 benchmarks from [test_benchmarks](test_benchmarks) which can be used for verifying the results reasonable quickly.
+- [small_test_benchmarks](small_test_benchmarks) contains a small subset of 13 benchmarks from [test_benchmarks](test_benchmarks) which can be used for verifying the results reasonable quickly.
 - [single_test_benchmarks](single_test_benchmarks) contains a single benchmark for running a smoke test to confirm whether anything is broken since this benchmark gets solved within a few seconds.
 
-One can also add new benchmarks by creating them in aiger or verilog format and adding them to this benchmarks folder, but note that in this case the docker image will have to be rebuilt before running the tool.
+One can also add new benchmarks by creating them in aiger or verilog format and adding them to the benchmarks folder.  One can also add/delete/modify entries in the four given files (all_benchmarks/test_benchmarks/small_test_benchmarks/single_test_benchmarks) for purposes of experimentation. However, in these cases the docker image has to be rebuilt using 
+```
+sudo docker build -t cex_kc:latest .
+```
+before running the tool.
 
 
 ## Scripts
@@ -124,11 +135,11 @@ The code has also been provided with few scripts to [run](run_expts.py) it on se
 python3 run_expts.py small_test_benchmarks -resultdir "results"
 ```
 
-This script runs all the benchmarks specified in the file with each possible configuration, based on the options, and the results are eventally reported in `runs.csv` and `results.json` files, both present within the results directory specified. The results directory also includes other files outputted by the tool as well as an `outputs` directory containing the logfiles for each run of the tool, all named with a different hash.
+This script runs all the benchmarks specified in the file with each possible configuration, based on the options, and the results are eventally reported in `runs.csv` and `results.json` files, both present within the results directory specified. The results directory also includes other files output by the tool as well as an `outputs` directory containing the logfiles for each run of the tool, all named with a different hash.
 
 Hashed directories are also created in the same results folder for each possible configuration, where data regarding benchmarks being part of various benchmark types such as `allUnates`(all variables were unates) or `noConflicts`(no conflicts were existent) etc is stored.
 
-> Note that currently all files outputted by the tool are overwritten across configurations, thus rendering them meaningless when running multiple configurations together. Thus, it is advised to run each configuration separately in case these files are to be utilized.
+> Note that currently all files output by the tool are overwritten across configurations, thus rendering them meaningless when running multiple configurations together. Thus, it is advised to run each configuration separately in case these files are to be utilized.
 
 ### Analysing the outputs
 
@@ -142,7 +153,7 @@ Note that some analyses might be cross-configurations while others might not be.
 
 #### Beyond Manthan analysis
 
-The textfile [beyond-manthan.txt](beyond-manthan.txt) jots down all the benchmarks which could not be solved by [Manthan](https://github.com/meelgroup/manthan) within the specified one hour time limit. Beyond Manthan analysis compares the solved benchmarks of any run with this textfile and reports all those which have been solved by the tool.
+The textfile [beyond-manthan.txt](beyond-manthan.txt) jots down all the benchmarks which could not be solved by [Manthan](https://github.com/meelgroup/manthan) within a two hour time limit as reported in the paper "Engineering an Efficient Boolean Functional Synthesis Engine by P. Golia, F. Slivovsky, S. Roy and K.S. Meel, ICCAD 2021". We use this list to compute how many benchmarks of the current list of benchmarks could not be solved by Manthan in 2 hours, but could be solved by the current run of our tool.
 
 
 ## Resource requirements
