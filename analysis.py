@@ -80,9 +80,9 @@ def genericTotalAnalysis(results: List[Result]):
 
     other_errs = [x.results["ERROR"] for x in filter(lambda x : 'timed out' not in x.results["ERROR"], err_results)]
 
-    print(f"{'Errored':<50} -> {len(errors)} errors across {len(set(errors))} unique benchmarks")
-    print(f"{'Hard Timeouts':<50} -> {len(timeouts)} timeouts across {len(set(timeouts))} unique benchmarks out of above")
-    print(f"{'Other errors':<50} -> {other_errs}")
+    # print(f"{'Errored':<50} -> {len(errors)} errors across {len(set(errors))} unique benchmarks")
+    print(f"{'Hard Timeouts (process was killed)':<50} -> {len(timeouts)} timeouts across {len(set(timeouts))} unique benchmarks")
+    # print(f"{'Other errors':<50} -> {other_errs}")
     print()
     print()
 
@@ -317,7 +317,7 @@ if __name__ == "__main__":
             print('-'*120)
             genericAnalysis(c, res, file)
             beyondManthan(c, res)
-            ratioOutputsSolved(c, res)
+            # ratioOutputsSolved(c, res)
             # unatePostProcessing(c, res, file)
 
     # scatter plot b/w conflict v2 and conflict v1

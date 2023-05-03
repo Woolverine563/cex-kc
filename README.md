@@ -122,8 +122,8 @@ There are 602 such benchmarks on which the experiments have been performed.
 Multiple files containing benchmark paths have been provided for running the complete set of experiments :
 - [all_benchmarks](all_benchmarks) contains a list of all 602 benchmarks.
 - [test_benchmarks](test_benchmarks) contains a list of some 304 benchmarks which were completely solved within half an hour under a specific choice of parameters and on hardware configuration described in the paper.
-- [small_test_benchmarks](small_test_benchmarks) contains a small subset of 13 benchmarks from [test_benchmarks](test_benchmarks) which can be used for verifying the results reasonable quickly.
-- [single_test_benchmarks](single_test_benchmarks) contains a single benchmark for running a smoke test to confirm whether anything is broken since this benchmark gets solved within a few seconds.
+- [small_test_benchmarks](small_test_benchmarks) contains a small subset of 15 benchmarks from [test_benchmarks](test_benchmarks) which can be used for verifying the results reasonable quickly.
+- [single_test_benchmarks](single_test_benchmarks) contains a single benchmark for running a smoke test to confirm whether anything is broken, this benchmark runs within say a second.
 
 One can also add new benchmarks by creating them in aiger or verilog format and adding them to the benchmarks folder.  One can also add/delete/modify entries in the four given files (all_benchmarks/test_benchmarks/small_test_benchmarks/single_test_benchmarks) for purposes of experimentation. However, in these cases the docker image has to be rebuilt using 
 ```

@@ -75,6 +75,7 @@ def run_code(boolargs: list, valargs: list, analyse: bool, analysisdir: str):
 
     except Exception as e:
         # assumption that mostly no failures        
+        print("Failure -")
         print(e, args)
         return D, [""] * (len(RESULTS)-1) + [str(e)], True
 
@@ -158,9 +159,9 @@ for name, c, (r, d), u, s, dyn, fc, t, ut in product(benchmarks, conflict, v, un
     arg = [name, order, c, r, d, t, ut]
     runs.append((bool_arg, arg, arguments.analyse, arguments.analysisdir))
 
-pool = Pool(processes=1 if arguments.noparallel else os.cpu_count())
-
 print(f"Starting execution of tool on {len(benchmarks)} benchmarks\n")
+
+pool = Pool(processes=1 if arguments.noparallel else os.cpu_count())
 
 pool = pool.starmap_async(run_code, runs)
 pool.wait()
