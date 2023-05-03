@@ -92,25 +92,31 @@ Furthermore, by default, the docker container exits immediately after the experi
 ```
 sudo docker run cex_kc:latest single_test_benchmarks retain
 ```
-needs to be run to retain the container. In this case, the container must be exited by closing the shell directly.
+needs to be run to retain the container. In this case, the container must be exited by first stopping it and then removing it from another shell.  Instructions for these are given below.
 
 For the docker run; every configuration - `DO`, `SO`, `CDO` and `CSO` have been assigned distinct output directories inside the `results` directory for the ease of distinguishment. Each of these directories further contain `OrderFiles`, `Unates`, and `Verilogs` sub-directories containing the final generated results. The logfiles, however, continue to be stored under the `outputs` directory directly under `results`. Every run corresponds to a distinct logfile, the path to which is known when performing the run.
 
 The exact sequence of steps to inspect the files is as follows -
 ```
-sudo docker run cex_kc:latest single_test_benchmarks retain
+$ sudo docker run cex_kc:latest single_test_benchmarks retain
 
 ## wait for the experiments & analyses to be complete
 
 ## then, run from another shell
-sudo docker exec -it --workdir "/home/user/results/" <container_id OR container_name> /bin/bash
-# to obtain container_id or container_name, use the following command
-sudo docker ps
+$ sudo docker ps
+## this will show the id and name of the container that ran the benchmark and is busy-waiting
+
+$ sudo docker exec -it --workdir "/home/user/results/" <container_id OR container_name> /bin/bash
 
 # the above docker exec command should start a shell within the container at `/home/user/results/` 
 $ ls
 CDO/ CSO/ DO/ SO/ outputs/ results.json runs.csv
-# these files/folders should show up on invoking `ls`, there might be other folders as well
+# these files/folders should show up on invoking `ls`, there might be other folders as well and may be ignored
+
+# Finally, after inspecting the log files etc, we can stop and remove the container in which the experiment was run
+$ sudo docker stop container_id
+$ sudo docker rm container_id
+
 ```
 
 For replicating the results reported in the paper, please skip to [Replicating the results](#replicating-the-results) section.
@@ -149,7 +155,9 @@ before running the tool.
 
 ## Scripts
 
-The code has also been provided with few scripts to [run](run_expts.py) it on several benchmarks at once as well as perform post-run [analysis](analysis.py). The complete set of scripts can be invoked in sequence by directly running the [test.sh](test.sh). This would create the required directories for dumping the results; run the experiments as well as perform the final analysis on the same.
+> Note: The scripts mentioned below need not be run individually to replicate any of our results. They are already invoked in the right sequence (in test.sh) when the commands given above for running the tool are executed. The scripts are indicated here only as an aid to understanding the sequence of actions.
+
+The scripts can be used to [run](run_expts.py) experiments on several benchmarks at once as well as perform post-run [analysis](analysis.py). The complete set of scripts can be invoked in sequence by directly running the [test.sh](test.sh). This would create the required directories for dumping the results; run the experiments as well as perform the final analysis on the same.
 
 ### Running the experiments
 
