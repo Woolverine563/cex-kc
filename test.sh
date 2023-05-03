@@ -12,7 +12,7 @@ for f in "DO" "SO" "CDO" "CSO"; do
 done
 
 benchmarks=${1:-'small_test_benchmarks'}
-python3 run_expts.py $benchmarks -nocompile -noparallel -resultdir "${folder}/results" -timeout 3600 -unatetimeout 1000 -conflict '1,2' -dynamic '0,1' 2>&1
+python3 run_expts.py $benchmarks -noparallel -resultdir "${folder}/results" -timeout 3600 -unatetimeout 1000 -conflict '1,2' -dynamic '0,1' 2>&1
 echo "All experiments have now finished, analyses will be performed next."
 python3 analysis.py "${folder}/results/results.json"
 echo "All analyses have now finished."
