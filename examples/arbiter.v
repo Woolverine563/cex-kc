@@ -1,0 +1,33 @@
+module exampleUnate ( r1, r2, r3, g1, g2, g3, res );
+input r1;
+input r2;
+input r3;
+input g1;
+input g2;
+input g3;
+output res;
+wire v1;
+wire v2;
+wire v3;
+wire v4;
+wire single;
+wire w1;
+wire w2;
+wire w3;
+wire causal;
+wire off;
+wire x;
+assign v1 = (g1 & ~g2 & ~g3);
+assign v2 = (g2 & ~g3 & ~g1);
+assign v3 = (g3 & ~g1 & ~g2);
+assign v4 = (~g1 & ~g2 & ~g3);
+assign single = (v1 | v2 | v3 | v4);
+assign w1 = (r1 | ~g1);
+assign w2 = (r2 | ~g2);
+assign w3 = (r3 | ~g3);
+assign causal = (w1 & w2 & w3);
+assign off = (~r1 & ~r2 & ~r3);
+assign x = (~v4 | off);
+assign res = (single & causal & x);
+
+endmodule

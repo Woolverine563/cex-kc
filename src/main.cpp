@@ -38,9 +38,9 @@ int main(int argc, char **argv)
 {
 	map<string, int> name2IdF;
 	map<int, string> id2NameF;
-	int i;
+	int itCount, someI = 0;
 	Abc_Ntk_t *FNtk;
-	Aig_Man_t *FAig, *SAig, *stoSAig;
+	Aig_Man_t *FAig, *SAig, *stoSAig, *finResSAig;
 	Cnf_Dat_t *conflict_cnf;
 	int compressFreq = 5;
 	int repaired = 0;
@@ -74,12 +74,15 @@ int main(int argc, char **argv)
 	SAig = NormalToPositive(FAig);
 	Aig_ManStop(FAig);
 	SAig = compressAig(SAig);
+	// cout << "SAig\n";
+	// printAig(SAig);
+	finResSAig = Aig_ManStartFrom(SAig); // stores the SynNNF forms made so far?
 
 	int initSize = Aig_ManObjNum(SAig);
 
 	clock_t start = clock();
 	pi.idx = 0;
-	i = 0;
+	itCount = 0;
 
 	if (options.dynamicOrdering)
 	{
@@ -97,6 +100,10 @@ int main(int argc, char **argv)
 	FAig = PositiveToNormalWithNeg(SAig);
 	FCnf = Cnf_Derive_Wrapper(FAig, 0);
 	Aig_ManStop(FAig);
+
+	#ifdef DEBUG
+		FAig = PositiveToNormal(SAig);
+	#endif
 
 	// pi.idx not updated in unates???
 	TIMED(
@@ -122,6 +129,13 @@ int main(int argc, char **argv)
 	int begSize = Aig_ManObjNum(SAig);
 	stoSAig = Aig_ManDupSimpleDfs(SAig);
 
+	pair<Aig_Man_t *, Aig_Man_t *> Skolem_pair = extract_AB(SAig, 0);
+	cout << "################# A, B for " << "0" << " #################\n"; 
+	printAig(Skolem_pair.first);
+	printAig(Skolem_pair.second);
+	Aig_ManStop(Skolem_pair.first);
+	Aig_ManStop(Skolem_pair.second);
+
 	if (options.conflictCheck == 0)
 	{
 		assert(false);
@@ -134,7 +148,7 @@ int main(int argc, char **argv)
 				break;
 			}
 			assert(ans != l_Undef);
-			i += 1;
+			itCount += 1;
 
 			repair(SAig);
 
@@ -153,6 +167,7 @@ int main(int argc, char **argv)
 			// disabling unates for now with new conflict formula!
 			if (options.unate && (unates[pi.idx] != -1))
 			{
+				cout << "unate found " << pi.idx << ": " << unates[pi.idx] << endl;
 				pi.idx++;
 				if (options.dynamicOrdering)
 				{
@@ -171,9 +186,17 @@ int main(int argc, char **argv)
 						phaseCount++;
 					}
 
+					#ifdef DEBUG
+						Aig_ManStop(FAig);
+					#endif
+
 					FAig = PositiveToNormalWithNeg(SAig);
 					FCnf = Cnf_Derive_Wrapper(FAig, 0);
 					Aig_ManStop(FAig);
+
+					#ifdef DEBUG
+						FAig = PositiveToNormal(SAig);
+					#endif
 
 					sat_solver_restart(conflictSolver);
 
@@ -213,13 +236,64 @@ int main(int argc, char **argv)
 
 				if (ans == l_False)
 				{
-					cout << "Conflict Free :" << pi.idx << endl;
+					cout << "Conflict Free : " << pi.idx << endl;
+
+					// final result saving
+					auto pObj = Aig_ManCo(SAig, 0)->pFanin0;
+					vector<int> varsR;
+					vector<Aig_Obj_t*> funcsR;
+
+					for (int i = 0; i <= pi.idx; i++) {
+						varsR.push_back(varsYS[i]);
+						varsR.push_back(varsYS[i] + numOrigInputs);
+						funcsR.push_back(Aig_ManConst1(SAig));
+						funcsR.push_back(Aig_ManConst1(SAig));
+					}
+
+					// pObj is the root of the "quantified uptil pi.idx AIG"
+					// can compute A, B for the next index
+					pObj = Aig_ComposeVec(SAig, pObj, funcsR, varsR);
+					pObj = Aig_Transfer(SAig, finResSAig, pObj, 2 * numOrigInputs);
+					Aig_ObjCreateCo(finResSAig, pObj);
+					
+					int next_idx = pi.idx + 1;
+					if(next_idx < numY){
+						pair<Aig_Man_t *, Aig_Man_t *> Skolem_pair = extract_AB(SAig, next_idx);
+						cout << "################# A, B for " << next_idx << " #################\n"; 
+						printAig(Skolem_pair.first);
+						printAig(Skolem_pair.second);
+						Aig_ManStop(Skolem_pair.first);
+						Aig_ManStop(Skolem_pair.second);
+					}
+					Aig_ManCleanup(SAig);
+					assert(Aig_ManCheck(SAig));
+					assert(Aig_ManCheck(finResSAig));
+
+
+					if (someI > 0) {
+						// we store FAig, can be xored to the previous one for checking
+						#ifdef DEBUG
+							Aig_Man_t *FAig2 = PositiveToNormal(SAig);
+							auto miter = Aig_ManCreateMiter(FAig, FAig2, 0);
+							auto Ntk = Abc_NtkFromAigPhase(miter);
+							auto out = Abc_NtkMiterSat(Ntk, 0, 0, 0, NULL, NULL);
+							assert(out == 1);
+
+							Aig_ManStop(FAig);
+							Aig_ManStop(miter);
+							Abc_NtkDelete(Ntk);
+							FAig = FAig2;
+
+							cout << "Verification succeeded for index : " << pi.idx << endl;
+						#endif
+					}
+
 					repaired++;
 					pi.idx++;
 					phase = true;
+					someI = 0;
 
-					if (pi.idx >= numY)
-					{
+					if (pi.idx >= numY) {
 						break;
 					}
 
@@ -272,7 +346,8 @@ int main(int argc, char **argv)
 				}
 				else
 				{
-					i++;
+					itCount++;
+					someI++;
 					assert(ans != l_Undef);
 
 #ifdef DEBUG
@@ -326,17 +401,22 @@ int main(int argc, char **argv)
 
 	assert(Aig_ManCheck(SAig));
 	SAig = compressAigByNtkMultiple(SAig, 3);
-	// printAig(SAig);
+	cout << "SAig at the end\n";
+	printAig(SAig);
+	cout << "finResSAig at the end\n";
+	printAig(finResSAig);
 
 	cout << "Initial formula had : " << initSize << " nodes" << endl;
 	cout << "Final formula has : " << Aig_ManObjNum(SAig) << " nodes" << endl;
 
 	cout << "Unates : " << init_unates << " initially out of " << tot_unates << " in total " << phaseCount << " phases" << endl;
 
-	cout << "Took " << it << " iterations of algorithm : " << i << " number of counterexamples, " << repaired << " outputs repaired out of non-unate " << numY - tot_unates << " outputs" << endl;
+	cout << "Took " << it << " iterations of algorithm : " << itCount << " number of counterexamples, " << repaired << " outputs repaired out of non-unate " << numY - tot_unates << " outputs" << endl;
 
 	cout << double(clock() - start) / CLOCKS_PER_SEC << " seconds" << endl;
 	cout << repairTime << " " << conflictCnfTime << " " << satSolvingTime << " " << unateTime << " " << compressTime << " " << rectifyCnfTime << " " << rectifyUnsatCoreTime << " " << overallCnfTime << endl;
+
+	cout << "Total Result COs : " << Aig_ManCoNum(finResSAig) << " Size : " << Aig_ManObjNum(finResSAig) << endl;
 
 	dumpResults(SAig, id2NameF);
 

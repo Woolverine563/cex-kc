@@ -271,6 +271,7 @@ lbool solveAndModel(Aig_Man_t *SAig);
 void calcLeastOccurrenceSAig(Aig_Man_t *SAig, int minIdx);
 Cnf_Dat_t *Cnf_Derive_Wrapper(Aig_Man_t *p, int nOutputs);
 void dumpResults(Aig_Man_t* SAig, map<int, string> id2NameF);
+pair<Aig_Man_t *, Aig_Man_t*>extract_AB(Aig_Man_t *SAig, int idx);
 
 template <class T>
 void print(T v)

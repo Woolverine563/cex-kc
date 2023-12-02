@@ -1,0 +1,46 @@
+// Verilog file written by procedure Aig_ManDumpVerilog()
+module test ( n01, n02, n03, n04, n05, n06, n07, n08, n09, n10, n11, n12, n13 );
+input n01;
+input n02;
+input n03;
+input n04;
+input n05;
+input n06;
+input n07;
+input n08;
+input n09;
+input n10;
+input n11;
+input n12;
+output n13;
+wire n14;
+wire n15;
+wire n16;
+wire n17;
+wire n18;
+wire n19;
+wire n20;
+wire n21;
+wire n22;
+wire n23;
+wire n24;
+wire n25;
+wire n26;
+wire n27;
+assign n14 =  n03 &  n06;
+assign n15 = ~n01 & ~n02;
+assign n16 = ~n03 &  n12;
+assign n17 =  n15 &  n16;
+assign n18 = ~n14 & ~n17;
+assign n19 =  n11 & ~n18;
+assign n20 =  n02 &  n05;
+assign n21 =  n12 &  n20;
+assign n22 = ~n19 & ~n21;
+assign n23 =  n10 & ~n22;
+assign n24 =  n01 &  n04;
+assign n25 =  n11 &  n12;
+assign n26 =  n24 &  n25;
+assign n27 = ~n23 & ~n26;
+assign n13 = ~n27;
+endmodule
+

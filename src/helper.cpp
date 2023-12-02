@@ -3548,3 +3548,44 @@ void dumpResults(Aig_Man_t* SAig, map<int, string> id2NameF) {
 
 	// Aig_ManDumpBlif(SAig, aigPath, )
 }
+
+pair<Aig_Man_t *, Aig_Man_t *>extract_AB(Aig_Man_t *SAig, int idx){
+	assert(idx < numY);
+	Aig_Obj_t *pObj = Aig_ManCo(SAig, 0)->pFanin0;
+	vector<int> vars;
+	vector<Aig_Obj_t *> funcs;
+	for(int i = 0; i < idx; i++){
+		vars.push_back(varsYS[i]);
+		vars.push_back(varsYS[i] + numOrigInputs);
+		funcs.push_back(Aig_ManConst1(SAig));
+		funcs.push_back(Aig_ManConst1(SAig));
+	}
+	vars.push_back(varsYS[idx]);
+	vars.push_back(varsYS[idx] + numOrigInputs);
+	funcs.push_back(Aig_ManConst1(SAig));
+	funcs.push_back(Aig_Not(Aig_ManConst1(SAig)));
+	Aig_Obj_t *node1 = Aig_ComposeVec(SAig, pObj, funcs, vars);
+	funcs.pop_back();
+	funcs.pop_back();
+	
+	funcs.push_back(Aig_Not(Aig_ManConst1(SAig)));
+	funcs.push_back(Aig_ManConst1(SAig));
+	Aig_Obj_t *node2 = Aig_ComposeVec(SAig, pObj, funcs, vars);
+
+	Aig_Obj_t *A_node = Aig_And(SAig, node1, Aig_Not(node2));
+	Aig_Obj_t *B_node = Aig_Not(Aig_Exor(SAig, node1, node2));
+
+	Aig_Man_t *A = Aig_ManStartFrom(SAig);
+	Aig_Man_t *B = Aig_ManStartFrom(SAig);
+	pObj = Aig_Transfer(SAig, A, A_node, 2 * numOrigInputs);
+	Aig_ObjCreateCo(A, pObj);
+
+	pObj = Aig_Transfer(SAig, B, B_node, 2 * numOrigInputs);
+	Aig_ObjCreateCo(B, pObj);
+	
+	Aig_ManCleanup(A);
+	Aig_ManCleanup(B);
+	A = compressAig(A);
+	B = compressAig(B);
+	return {A, B};
+}
