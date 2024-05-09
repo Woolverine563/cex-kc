@@ -2228,7 +2228,6 @@ Aig_Man_t *NormalToPositive(Aig_Man_t *&FAig)
 	// dumpNnf(&nnf, options.benchmark + ".nnf");
 
 	Aig_Man_t *SAig = nnf.createAigWithoutClouds();
-
 	// remove negations of X already, we don't even need them at all
 	vector<int> vars;
 	vector<Aig_Obj_t *> funcs;
@@ -2240,6 +2239,8 @@ Aig_Man_t *NormalToPositive(Aig_Man_t *&FAig)
 	}
 
 	auto pAigObj = Aig_ManCo(SAig, 0)->pFanin0;
+	// cout << "Before composing";
+	// printAig(SAig);
 	pAigObj = Aig_ComposeVec(SAig, pAigObj, funcs, vars);
 
 	assert(!Aig_ObjIsCo(Aig_Regular(pAigObj)));
@@ -2827,19 +2828,18 @@ void repair(Aig_Man_t *SAig)
 		Aig_Obj_t *patch = NULL;
 
 		if (options.rectifyProc == 1)
-		{
+		{	
 			patch = Rectify(SAig, k);
 		}
 		else if (options.rectifyProc == 2)
 		{
-			// rectify2 is buggy!
+			// rectify2 is buggy
 			patch = Rectify2(SAig, k, options.depth, options.allowUnivQuantify);
 		}
 		else if (options.rectifyProc == 3)
 		{
 			patch = Rectify3(SAig, k, options.depth, options.allowUnivQuantify);
 		}
-
 		assert(patch != NULL);
 		auto AigNew = Aig_ManDupSimpleDfs(SAig);
 		Aig_Obj_t *pObj = Aig_Transfer(SAig, AigNew, patch, 2 * numOrigInputs);
@@ -3588,4 +3588,263 @@ pair<Aig_Man_t *, Aig_Man_t *>extract_AB(Aig_Man_t *SAig, int idx){
 	A = compressAig(A);
 	B = compressAig(B);
 	return {A, B};
+}
+
+int verify_A(Aig_Man_t *A_og, Aig_Man_t *spec_og, int idx){
+	Aig_Man_t *spec = Aig_ManDupSimpleDfs(spec_og);
+	Aig_Man_t *A = Aig_ManDupSimpleDfs(A_og);
+	Aig_Obj_t *pObj_spec = Aig_ManCo(spec, 0)->pFanin0;
+	pObj_spec = Aig_Transfer(spec, A, pObj_spec, 2 * numOrigInputs);
+	Aig_ObjCreateCo(A, pObj_spec);
+	vector <Aig_Obj_t *> funcs;
+	vector <int> vars;
+	// set others to normal form (negations)
+	for(int i = 0; i < numX; i++){
+		funcs.push_back(Aig_Not(Aig_ManCi(A, varsXS[i])));
+		vars.push_back(numOrigInputs + varsXS[i]);
+	}
+	for(int i = 0; i < numY; i++){
+		if(i != idx){
+			funcs.push_back(Aig_Not(Aig_ManCi(A, varsYS[i])));
+			vars.push_back(numOrigInputs + varsYS[i]);
+		}
+	}
+	// temp is A(X, Y[idx + 1 ... n])
+	Aig_Obj_t *temp =  Aig_ComposeVec(A, Aig_ManCo(A, 0)->pFanin0, funcs, vars);
+	Aig_ObjPatchFanin0(A, Aig_ManCo(A, 0), temp);
+	// set the idx output var to 0
+	funcs.push_back(Aig_ManConst0(A));
+	vars.push_back(varsYS[idx]);
+	funcs.push_back(Aig_ManConst1(A));
+	vars.push_back(varsYS[idx] + numOrigInputs);
+	// temp is spec(X, Y[1 .. idx - 1], Y[idx] = 0, Y[idx + 1 ... n])
+	temp =  Aig_ComposeVec(A, Aig_ManCo(A, 1)->pFanin0, funcs, vars);
+	Aig_ObjPatchFanin0(A, Aig_ManCo(A, 1), temp);
+	
+	Aig_ManCleanup(A);
+	// compressAig(A); gives seg fault for some reason
+	sat_solver_restart(conflictSolver);
+	Cnf_Dat_t *formula = Cnf_Derive_Wrapper(A, 0);
+	bool added = addCnfToSolver(conflictSolver, formula);
+	Cnf_DataFree(formula);
+	if(!added){
+		cout << "Couldn't add A_i verif to sat solver" << endl;
+	}
+	else{
+		lbool status = sat_solver_solve(conflictSolver, NULL, NULL, (ABC_INT64_T)0, (ABC_INT64_T)0,
+									(ABC_INT64_T)0, (ABC_INT64_T)0);
+		assert(status != l_Undef);
+		if(status == l_False) cout << "UNSAT! A_i ensures that spec cannot be satisfied with y_i = 0" << endl;
+		else{
+			cout << "A_i verif failed" << endl;
+		}
+	}
+	Aig_ManStop(A);
+	Aig_ManStop(spec);
+	return 1;
+}
+
+int verify_C(Aig_Man_t *A_og, Aig_Man_t *B_og, Aig_Man_t *spec_og, int idx){
+	Aig_Man_t *spec = Aig_ManDupSimpleDfs(spec_og);
+	Aig_Man_t *A = Aig_ManDupSimpleDfs(A_og);
+	Aig_Man_t *B = Aig_ManDupSimpleDfs(B_og);
+	Aig_Obj_t *pObj_spec = Aig_ManCo(spec, 0)->pFanin0;
+	Aig_Obj_t *pObj_B = Aig_ManCo(B, 0)->pFanin0;
+
+	pObj_spec = Aig_Transfer(spec, A, pObj_spec, 2 * numOrigInputs);
+	pObj_B = Aig_Transfer(B, A, pObj_B, 2 * numOrigInputs);
+	Aig_ObjCreateCo(A, pObj_B);
+	Aig_ObjCreateCo(A, pObj_spec);
+
+	vector <Aig_Obj_t *> funcs;
+	vector <int> vars;
+	// set others to normal form (negations)
+	for(int i = 0; i < numX; i++){
+		funcs.push_back(Aig_Not(Aig_ManCi(A, varsXS[i])));
+		vars.push_back(numOrigInputs + varsXS[i]);
+	}
+	for(int i = 0; i < numY; i++){
+		if(i != idx){
+			funcs.push_back(Aig_Not(Aig_ManCi(A, varsYS[i])));
+			vars.push_back(numOrigInputs + varsYS[i]);
+		}
+	}
+	// temp is not A(X, Y[idx + 1 ... n])
+	Aig_Obj_t *temp =  Aig_ComposeVec(A, Aig_ManCo(A, 0)->pFanin0, funcs, vars);
+	Aig_ObjPatchFanin0(A, Aig_ManCo(A, 0), Aig_Not(temp));
+	// temp is not B(X, Y[idx + 1 ... n])
+	temp =  Aig_ComposeVec(A, Aig_ManCo(A, 1)->pFanin0, funcs, vars);
+	Aig_ObjPatchFanin0(A, Aig_ManCo(A, 1), Aig_Not(temp));
+	// set the idx output var to 1
+	funcs.push_back(Aig_ManConst1(A));
+	vars.push_back(varsYS[idx]);
+	funcs.push_back(Aig_ManConst0(A));
+	vars.push_back(varsYS[idx] + numOrigInputs);
+	// temp is spec(X, Y[1 .. idx - 1], Y[idx] = 1, Y[idx + 1 ... n])
+	temp =  Aig_ComposeVec(A, Aig_ManCo(A, 2)->pFanin0, funcs, vars);
+	Aig_ObjPatchFanin0(A, Aig_ManCo(A, 2), temp);
+	Aig_ManCleanup(A);
+	// compressAig(A); gives seg fault for some reason
+	sat_solver_restart(conflictSolver);
+	Cnf_Dat_t *formula = Cnf_Derive_Wrapper(A, 0);
+	bool added = addCnfToSolver(conflictSolver, formula);
+	Cnf_DataFree(formula);
+	if(!added){
+		cout << "Couldn't add C_i verif to sat solver" << endl;
+	}
+	else{
+		lbool status = sat_solver_solve(conflictSolver, NULL, NULL, (ABC_INT64_T)0, (ABC_INT64_T)0,
+									(ABC_INT64_T)0, (ABC_INT64_T)0);
+		assert(status != l_Undef);
+		if(status == l_False) cout << "UNSAT! C_i ensures that spec cannot be satisfied with y_i = 1" << endl;
+		else{
+			cout << "C_i verif failed" << endl;
+		}
+	}
+	Aig_ManStop(A);
+	Aig_ManStop(spec);
+	Aig_ManStop(B);
+	return 1;
+}
+
+int verify_B(Aig_Man_t *B_og, Aig_Man_t *spec_og, Aig_Man_t *quantified_spec_og, int idx){
+	Aig_Man_t *spec = Aig_ManDupSimpleDfs(spec_og);
+	Aig_Man_t *B = Aig_ManDupSimpleDfs(B_og);
+	Aig_Man_t *quantified_spec = Aig_ManDupSimpleDfs(quantified_spec_og);
+	Aig_Obj_t *pObj;
+	vector <Aig_Obj_t *> funcs;
+	vector <int> vars;
+
+	//B and the 2 copies of spec share X, Y[i + 1 ... n - 1].
+	//one has Y[i] = 0, other has Y[i] = 1. need to create copies of Y[0 ... i - 1]
+	pObj = Aig_Transfer(spec, B, Aig_ManCo(spec, 0)->pFanin0, 2 * numOrigInputs);
+	funcs.push_back(Aig_ManConst0(B)); vars.push_back(varsYS[idx]);
+	funcs.push_back(Aig_ManConst1(B)); vars.push_back(varsYS[idx] + numOrigInputs);
+	for(int i = 0; i < numX; i++){
+		funcs.push_back(Aig_Not(Aig_ManCi(B, varsXS[i])));
+		vars.push_back(numOrigInputs + varsXS[i]);
+	}
+	for(int i = 0; i < numY; i++){
+		if(i != idx){
+			funcs.push_back(Aig_Not(Aig_ManCi(B, varsYS[i])));
+			vars.push_back(numOrigInputs + varsYS[i]);
+		}
+	}
+	pObj = Aig_ComposeVec(B, pObj, funcs, vars);
+	Aig_ObjCreateCo(B, pObj); // spec copy with Y[i] = 0
+	
+	pObj = Aig_ComposeVec(B, Aig_ManCo(B, 0)->pFanin0, funcs, vars);
+	Aig_ObjPatchFanin0(B, Aig_ManCo(B, 0), pObj); // B with X, Y[-i] in the negation form
+	funcs.clear(); vars.clear();
+
+	pObj = Aig_Transfer(quantified_spec, B, Aig_ManCo(quantified_spec, 0)->pFanin0, 2 * numOrigInputs);
+	funcs.push_back(Aig_ManConst1(B)); vars.push_back(varsYS[idx]);
+	funcs.push_back(Aig_ManConst0(B)); vars.push_back(varsYS[idx] + numOrigInputs);
+	for(int i = 0; i < numX; i++){
+		funcs.push_back(Aig_Not(Aig_ManCi(B, varsXS[i])));
+		vars.push_back(numOrigInputs + varsXS[i]);
+	}
+	for(int i = 0; i < numY; i++){
+		if(i < idx){ //for quantifying the variables in SynNNF in the quantified SAig
+			funcs.push_back(Aig_ManConst1(B)); vars.push_back(varsYS[i]);
+			funcs.push_back(Aig_ManConst1(B)); vars.push_back(varsYS[i] + numOrigInputs);
+		}
+		if(i > idx){
+			funcs.push_back(Aig_Not(Aig_ManCi(B, varsYS[i])));
+			vars.push_back(numOrigInputs + varsYS[i]);
+		}
+	}
+	pObj = Aig_ComposeVec(B, pObj, funcs, vars);
+	Aig_ObjCreateCo(B, Aig_Not(pObj)); // not {exists Y[0 ... idx - 1] spec copy with Y[i] = 1}
+	Aig_ManCleanup(B);
+	// printAig(B);
+	sat_solver_restart(conflictSolver);
+	Cnf_Dat_t *formula = Cnf_Derive_Wrapper(B, 0);
+	bool added = addCnfToSolver(conflictSolver, formula);
+	Cnf_DataFree(formula);
+	if(!added){
+		cout << "Couldn't add B_i verif to sat solver" << endl;
+	}
+	else{
+		lbool status = sat_solver_solve(conflictSolver, NULL, NULL, (ABC_INT64_T)0, (ABC_INT64_T)0,
+									(ABC_INT64_T)0, (ABC_INT64_T)0);
+		assert(status != l_Undef);
+		if(status == l_False) cout << "UNSAT! B_i ensures that if spec can be satified with yi = 0, it also can be with yi = 1" << endl;
+		else{
+			cout << "B_i verif failed" << endl;
+		}
+	}
+	return 1;
+}
+
+int verify_semantic(Aig_Man_t *SAig, Aig_Man_t *finResSAig, int idx){
+	// need to confirm that it is still the same formula after doing repair for conflict-freeness of idx var
+	Aig_Man_t *syn_nnf = Aig_ManDupSimpleDfs(SAig);
+	Aig_Man_t *temp = Aig_ManDupSimpleDfs(finResSAig);
+	vector<int> vars;
+	vector<Aig_Obj_t *> funcs;
+
+	for (int i = 0; i < numY; i++)
+	{
+		if (i < idx)
+		{
+			vars.push_back(varsYS[i]);
+			funcs.push_back(Aig_ManConst1(syn_nnf));
+			vars.push_back(varsYS[i] + numOrigInputs);
+			funcs.push_back(Aig_ManConst1(syn_nnf));
+		}
+		else if (i >= idx)
+		{
+			vars.push_back(varsYS[i] + numOrigInputs);
+			funcs.push_back(Aig_Not(Aig_ManCi(syn_nnf, varsYS[i])));
+		}
+	};
+	Aig_Obj_t *pObj = Aig_ComposeVec(syn_nnf, Aig_ManCo(syn_nnf, 0)->pFanin0, funcs, vars);
+	Aig_ObjPatchFanin0(syn_nnf, Aig_ManCo(syn_nnf, 0), pObj);
+	pObj = Aig_ManCo(syn_nnf, 0)->pFanin0;
+
+	vars.clear(); funcs.clear();
+	for (int i = 0; i < numY; i++)
+	{
+		if (i < idx)
+		{
+			vars.push_back(varsYS[i]);
+			funcs.push_back(Aig_ManConst1(temp));
+			vars.push_back(varsYS[i] + numOrigInputs);
+			funcs.push_back(Aig_ManConst1(temp));
+		}
+		else if (i >= idx)
+		{
+			vars.push_back(varsYS[i] + numOrigInputs);
+			funcs.push_back(Aig_Not(Aig_ManCi(temp, varsYS[i])));
+		}
+	};
+
+	Aig_Obj_t *prev_syn_nnf = Aig_ComposeVec(temp, Aig_ManCo(temp, idx - 1)->pFanin0, funcs, vars);
+	Aig_ObjPatchFanin0(temp, Aig_ManCo(temp, idx - 1), prev_syn_nnf);
+	
+	pObj = Aig_Transfer(temp, syn_nnf, Aig_ManCo(temp, idx - 1)->pFanin0, 2 * numOrigInputs);
+
+	Aig_ObjPatchFanin0(syn_nnf, Aig_ManCo(syn_nnf, 0), Aig_Exor(syn_nnf, pObj, Aig_ManCo(syn_nnf, 0)->pFanin0));
+	Aig_ManCleanup(syn_nnf);
+	printAig(syn_nnf);
+	printAig(temp);
+	
+	sat_solver_restart(conflictSolver);
+	Cnf_Dat_t *formula = Cnf_Derive_Wrapper(syn_nnf, 1);
+	bool added = addCnfToSolver(conflictSolver, formula);
+	Cnf_DataFree(formula);
+	if(!added){
+		cout << "Couldn't add semantic verif to sat solver" << endl;
+	}
+	else{
+		lbool status = sat_solver_solve(conflictSolver, NULL, NULL, (ABC_INT64_T)0, (ABC_INT64_T)0,
+									(ABC_INT64_T)0, (ABC_INT64_T)0);
+		assert(status != l_Undef);
+		if(status == l_False) cout << "UNSAT! repair for conflict-freeness preserves semantics" << endl;
+		else{
+			cout << "semantic verif failed" << endl;
+		}
+	}
+	return 1;
 }

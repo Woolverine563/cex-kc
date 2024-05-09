@@ -272,7 +272,10 @@ void calcLeastOccurrenceSAig(Aig_Man_t *SAig, int minIdx);
 Cnf_Dat_t *Cnf_Derive_Wrapper(Aig_Man_t *p, int nOutputs);
 void dumpResults(Aig_Man_t* SAig, map<int, string> id2NameF);
 pair<Aig_Man_t *, Aig_Man_t*>extract_AB(Aig_Man_t *SAig, int idx);
-
+int verify_A(Aig_Man_t *A, Aig_Man_t *spec, int idx);
+int verify_B(Aig_Man_t *B, Aig_Man_t *spec, Aig_Man_t *SAig, int idx);
+int verify_C(Aig_Man_t *A, Aig_Man_t *B, Aig_Man_t *spec, int idx);
+int verify_semantic(Aig_Man_t *, Aig_Man_t *, int);
 template <class T>
 void print(T v)
 {
